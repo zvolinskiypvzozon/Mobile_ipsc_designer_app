@@ -526,8 +526,8 @@ class _Perspective {
 
   static const double camHeight = 1.7;
   static const double camDepth = 52;
-  static const double stageHalfWidth = 10;
-  static const double corridorHalfWidth = 8.5;
+  static const double stageHalfWidth = 20;
+  static const double corridorHalfWidth = 17;
   static const double farY = 5;
   static const double nearY = 50;
   static const double bermHeight = 2.5;
@@ -840,79 +840,35 @@ class _GalleryPainter3D extends CustomPainter {
         );
         break;
       case StageElementType.paperTarget:
+      case StageElementType.noShoot:
+      case StageElementType.classicTarget:
+      case StageElementType.noShootClassic:
       case StageElementType.ipscMiniTarget:
+      case StageElementType.noShootMini:
+      case StageElementType.classicMiniTarget:
+      case StageElementType.classicMiniNoShoot:
       case StageElementType.partialTarget:
+      case StageElementType.partialTargetTop:
+      case StageElementType.partialTargetLeft:
+      case StageElementType.partialTargetRight:
+      case StageElementType.narrowTarget:
+      case StageElementType.narrowTargetNoShoot:
+      case StageElementType.dOctagonPeach:
+      case StageElementType.dOctagonWhite:
+      case StageElementType.dOctagonNoShoot:
+      case StageElementType.roundHeadLarge:
+      case StageElementType.roundHeadSmall:
+      case StageElementType.ovalHead:
+      case StageElementType.teardropHead:
+      case StageElementType.halfHead:
+      case StageElementType.penaltyTarget:
       case StageElementType.hardCoverTarget:
       case StageElementType.hardCoverPartial:
-        _drawIpscTarget(
-          canvas,
-          rect,
-          isSelected,
-          fill: Colors.white,
-          cover: spec == StageElementType.hardCoverTarget ||
-              spec == StageElementType.hardCoverPartial,
-        );
-        break;
-      case StageElementType.classicTarget:
-      case StageElementType.classicMiniTarget:
-        canvas.drawRect(rect, Paint()..color = spec.color);
-        _drawTargetZones(canvas, rect);
-        canvas.drawRect(rect, border);
-        break;
-      case StageElementType.noShoot:
-      case StageElementType.noShootClassic:
-      case StageElementType.noShootMini:
-        final isClassic = spec == StageElementType.noShootClassic;
-        final shape = isClassic ? null : _ipscPath(rect);
-        if (shape == null) {
-          canvas.drawRect(rect, Paint()..color = Colors.white);
-          canvas.drawRect(
-            rect,
-            Paint()
-              ..color = Colors.black
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = isSelected ? 3 : 2,
-          );
-        } else {
-          canvas.drawPath(shape, Paint()..color = Colors.white);
-          canvas.drawPath(
-            shape,
-            Paint()
-              ..color = Colors.black
-              ..style = PaintingStyle.stroke
-              ..strokeWidth = isSelected ? 3 : 2,
-          );
-        }
-        final cross = Paint()
-          ..color = Colors.red
-          ..strokeWidth = math.max(w * 0.08, 1.5);
-        canvas.drawLine(
-          rect.topLeft + Offset(w * 0.2, h * 0.2),
-          rect.bottomRight - Offset(w * 0.2, h * 0.2),
-          cross,
-        );
-        canvas.drawLine(
-          rect.bottomLeft + Offset(w * 0.2, -h * 0.2),
-          rect.topRight - Offset(w * 0.2, -h * 0.2),
-          cross,
-        );
-        break;
       case StageElementType.moverTarget:
       case StageElementType.swingingTarget:
       case StageElementType.dropTurner:
       case StageElementType.knockDownTarget:
-        canvas.drawRect(
-          Rect.fromLTWH(rect.left - w * 0.1, rect.top - h * 0.15, w * 1.2, h * 0.08),
-          Paint()..color = Colors.grey.shade700,
-        );
-        _drawIpscTarget(
-          canvas,
-          rect,
-          isSelected,
-          fill: spec == StageElementType.knockDownTarget
-              ? const Color(0xFFCFD8DC)
-              : Colors.white,
-        );
+        _drawPaperCard(canvas, element, rect, isSelected);
         break;
       case StageElementType.visionBarrier:
       case StageElementType.visionBarrierNarrow:
@@ -1057,6 +1013,9 @@ class _GalleryPainter3D extends CustomPainter {
     }
   }
 
+  static const Color _cardboard = Color(0xFFF2D2A9);
+  static const Color _cardOutline = Color(0xFF26262B);
+
   Path _ipscPath(Rect rect) {
     final cutY = rect.top + rect.height * 0.72;
     final topInset = rect.width * 0.28;
@@ -1070,64 +1029,229 @@ class _GalleryPainter3D extends CustomPainter {
       ..close();
   }
 
-  void _drawIpscTarget(
+  Path _octagonPath(Rect r) {
+    final cx = r.width * 0.3;
+    final cy = r.height * 0.3;
+    return Path()
+      ..moveTo(r.left + cx, r.top)
+      ..lineTo(r.right - cx, r.top)
+      ..lineTo(r.right, r.top + cy)
+      ..lineTo(r.right, r.bottom - cy)
+      ..lineTo(r.right - cx, r.bottom)
+      ..lineTo(r.left + cx, r.bottom)
+      ..lineTo(r.left, r.bottom - cy)
+      ..lineTo(r.left, r.top + cy)
+      ..close();
+  }
+
+  Path _teardropPath(Rect r) {
+    final cx = r.center.dx;
+    return Path()
+      ..moveTo(cx, r.bottom)
+      ..quadraticBezierTo(r.left - r.width * 0.15, r.center.dy, cx, r.top)
+      ..quadraticBezierTo(r.right + r.width * 0.15, r.center.dy, cx, r.bottom)
+      ..close();
+  }
+
+  Path _domePath(Rect r) {
+    return Path()
+      ..moveTo(r.left, r.bottom)
+      ..arcToPoint(
+        Offset(r.right, r.bottom),
+        radius: Radius.elliptical(r.width / 2, r.height),
+      )
+      ..close();
+  }
+
+  Path _cardShape(StageElementType spec, Rect r) {
+    switch (spec) {
+      case StageElementType.dOctagonPeach:
+      case StageElementType.dOctagonWhite:
+      case StageElementType.dOctagonNoShoot:
+        return _octagonPath(r);
+      case StageElementType.roundHeadLarge:
+      case StageElementType.roundHeadSmall:
+      case StageElementType.ovalHead:
+        return Path()..addOval(r);
+      case StageElementType.teardropHead:
+        return _teardropPath(r);
+      case StageElementType.halfHead:
+        return _domePath(r);
+      case StageElementType.paperTarget:
+      case StageElementType.noShoot:
+      case StageElementType.ipscMiniTarget:
+      case StageElementType.noShootMini:
+      case StageElementType.hardCoverTarget:
+      case StageElementType.hardCoverPartial:
+      case StageElementType.moverTarget:
+      case StageElementType.swingingTarget:
+      case StageElementType.dropTurner:
+      case StageElementType.knockDownTarget:
+        return _ipscPath(r);
+      default:
+        return Path()..addRect(r);
+    }
+  }
+
+  Color _cardFill(StageElementType spec) {
+    const whites = <StageElementType>{
+      StageElementType.noShoot,
+      StageElementType.noShootClassic,
+      StageElementType.noShootMini,
+      StageElementType.classicMiniNoShoot,
+      StageElementType.narrowTargetNoShoot,
+      StageElementType.dOctagonNoShoot,
+      StageElementType.penaltyTarget,
+      StageElementType.ovalHead,
+    };
+    if (whites.contains(spec)) {
+      return Colors.white;
+    }
+    if (spec == StageElementType.knockDownTarget) {
+      return const Color(0xFFCFD8DC);
+    }
+    return _cardboard;
+  }
+
+  bool _isNoShootCard(StageElementType spec) {
+    const noShoots = <StageElementType>{
+      StageElementType.noShoot,
+      StageElementType.noShootClassic,
+      StageElementType.noShootMini,
+      StageElementType.classicMiniNoShoot,
+      StageElementType.narrowTargetNoShoot,
+      StageElementType.dOctagonNoShoot,
+      StageElementType.penaltyTarget,
+    };
+    return noShoots.contains(spec);
+  }
+
+  void _drawPaperCard(
     Canvas canvas,
+    StageElement element,
     Rect rect,
-    bool isSelected, {
-    required Color fill,
-    bool cover = false,
-  }) {
-    final path = _ipscPath(rect);
-    canvas.drawPath(path, Paint()..color = fill);
+    bool isSelected,
+  ) {
+    final spec = element.type;
+    const floating = <StageElementType>{
+      StageElementType.dOctagonPeach,
+      StageElementType.dOctagonWhite,
+      StageElementType.dOctagonNoShoot,
+      StageElementType.roundHeadLarge,
+      StageElementType.roundHeadSmall,
+      StageElementType.ovalHead,
+      StageElementType.teardropHead,
+      StageElementType.halfHead,
+    };
+    final hasLegs = floating.contains(spec);
+    final cardRect = hasLegs
+        ? Rect.fromLTWH(rect.left, rect.top, rect.width, rect.height * 0.55)
+        : rect;
+
+    if (hasLegs) {
+      final legW = math.max(cardRect.width * 0.08, 1.5);
+      final legH = rect.bottom - cardRect.bottom;
+      final legPaint = Paint()..color = _cardOutline;
+      canvas.drawRect(
+        Rect.fromLTWH(
+          cardRect.left + cardRect.width * 0.2,
+          cardRect.bottom,
+          legW,
+          legH,
+        ),
+        legPaint,
+      );
+      canvas.drawRect(
+        Rect.fromLTWH(
+          cardRect.right - cardRect.width * 0.2 - legW,
+          cardRect.bottom,
+          legW,
+          legH,
+        ),
+        legPaint,
+      );
+    }
+
+    final shape = _cardShape(spec, cardRect);
+    canvas.drawPath(shape, Paint()..color = _cardFill(spec));
+
+    final cover = spec == StageElementType.hardCoverTarget ||
+        spec == StageElementType.hardCoverPartial;
     if (cover) {
       canvas.save();
-      canvas.clipPath(path);
+      canvas.clipPath(shape);
       canvas.drawRect(
-        Rect.fromLTWH(rect.left, rect.top, rect.width, rect.height * 0.35),
+        Rect.fromLTWH(
+          cardRect.left,
+          cardRect.top,
+          cardRect.width,
+          cardRect.height * 0.4,
+        ),
         Paint()..color = Colors.black87,
       );
       canvas.restore();
     }
-    _drawTargetZones(canvas, rect);
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = Colors.brown
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = isSelected ? 3 : 1.5,
-    );
-  }
 
-  void _drawTargetZones(Canvas canvas, Rect rect) {
-    final zone = Paint()
-      ..color = Colors.black45
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1;
-    final aZone = Rect.fromCenter(
-      center: Offset(rect.center.dx, rect.top + rect.height * 0.55),
-      width: rect.width * 0.24,
-      height: rect.height * 0.16,
-    );
-    canvas.drawRect(aZone, zone);
-    canvas.drawLine(
-      Offset(rect.left + 1, rect.top + rect.height * 0.72),
-      Offset(rect.right - 1, rect.top + rect.height * 0.72),
-      zone,
-    );
-    if (rect.width > 26) {
-      final letter = TextPainter(
-        text: const TextSpan(
-          text: 'A',
-          style: TextStyle(color: Colors.black54, fontSize: 9),
-        ),
-        textDirection: TextDirection.ltr,
-      )..layout();
-      letter.paint(
-        canvas,
+    final inset = math.min(cardRect.width, cardRect.height) * 0.09;
+    if (inset > 0.5) {
+      final inner = _cardShape(spec, cardRect.deflate(inset));
+      canvas.drawPath(
+        inner,
+        Paint()
+          ..color = _cardOutline
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = math.max(cardRect.width * 0.02, 0.8),
+      );
+    }
+
+    if (_isNoShootCard(spec)) {
+      final cross = Paint()
+        ..color = Colors.red
+        ..strokeWidth = math.max(cardRect.width * 0.1, 2);
+      canvas.drawLine(
         Offset(
-          aZone.center.dx - letter.width / 2,
-          aZone.center.dy - letter.height / 2,
+          cardRect.left + cardRect.width * 0.25,
+          cardRect.top + cardRect.height * 0.25,
         ),
+        Offset(
+          cardRect.right - cardRect.width * 0.25,
+          cardRect.bottom - cardRect.height * 0.25,
+        ),
+        cross,
+      );
+      canvas.drawLine(
+        Offset(
+          cardRect.right - cardRect.width * 0.25,
+          cardRect.top + cardRect.height * 0.25,
+        ),
+        Offset(
+          cardRect.left + cardRect.width * 0.25,
+          cardRect.bottom - cardRect.height * 0.25,
+        ),
+        cross,
+      );
+    }
+
+    canvas.drawPath(
+      shape,
+      Paint()
+        ..color = _cardOutline
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isSelected ? 2.5 : 1.2,
+    );
+
+    if (spec == StageElementType.moverTarget ||
+        spec == StageElementType.swingingTarget ||
+        spec == StageElementType.dropTurner ||
+        spec == StageElementType.knockDownTarget) {
+      canvas.drawRect(
+        Rect.fromLTWH(
+          rect.left - rect.width * 0.1,
+          rect.top - rect.height * 0.12,
+          rect.width * 1.2,
+          rect.height * 0.07,
+        ),
+        Paint()..color = Colors.grey.shade700,
       );
     }
   }
