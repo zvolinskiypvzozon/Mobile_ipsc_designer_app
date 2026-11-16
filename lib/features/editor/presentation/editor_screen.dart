@@ -152,8 +152,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   IconData _categoryIcon(PropCategory category) {
     switch (category) {
-      case PropCategory.paperTargets:
-        return Icons.adjust;
       case PropCategory.steel:
         return Icons.disc_full;
       case PropCategory.movers:
@@ -840,29 +838,6 @@ class _GalleryPainter3D extends CustomPainter {
           rim,
         );
         break;
-      case StageElementType.paperTarget:
-      case StageElementType.noShoot:
-      case StageElementType.classicTarget:
-      case StageElementType.noShootClassic:
-      case StageElementType.ipscMiniTarget:
-      case StageElementType.noShootMini:
-      case StageElementType.classicMiniTarget:
-      case StageElementType.classicMiniNoShoot:
-      case StageElementType.partialTarget:
-      case StageElementType.partialTargetTop:
-      case StageElementType.partialTargetLeft:
-      case StageElementType.partialTargetRight:
-      case StageElementType.narrowTarget:
-      case StageElementType.narrowTargetNoShoot:
-      case StageElementType.dOctagonPeach:
-      case StageElementType.dOctagonWhite:
-      case StageElementType.dOctagonNoShoot:
-      case StageElementType.roundHeadLarge:
-      case StageElementType.roundHeadSmall:
-      case StageElementType.ovalHead:
-      case StageElementType.teardropHead:
-      case StageElementType.halfHead:
-      case StageElementType.penaltyTarget:
       case StageElementType.hardCoverTarget:
       case StageElementType.hardCoverPartial:
       case StageElementType.moverTarget:
@@ -1014,7 +989,6 @@ class _GalleryPainter3D extends CustomPainter {
     }
   }
 
-  static const Color _cardboard = Color(0xFFF2D2A9);
   static const Color _cardOutline = Color(0xFF26262B);
 
   Path _ipscPath(Rect rect) {
@@ -1030,103 +1004,6 @@ class _GalleryPainter3D extends CustomPainter {
       ..close();
   }
 
-  Path _octagonPath(Rect r) {
-    final cx = r.width * 0.3;
-    final cy = r.height * 0.3;
-    return Path()
-      ..moveTo(r.left + cx, r.top)
-      ..lineTo(r.right - cx, r.top)
-      ..lineTo(r.right, r.top + cy)
-      ..lineTo(r.right, r.bottom - cy)
-      ..lineTo(r.right - cx, r.bottom)
-      ..lineTo(r.left + cx, r.bottom)
-      ..lineTo(r.left, r.bottom - cy)
-      ..lineTo(r.left, r.top + cy)
-      ..close();
-  }
-
-  Path _teardropPath(Rect r) {
-    final cx = r.center.dx;
-    return Path()
-      ..moveTo(cx, r.bottom)
-      ..quadraticBezierTo(r.left - r.width * 0.15, r.center.dy, cx, r.top)
-      ..quadraticBezierTo(r.right + r.width * 0.15, r.center.dy, cx, r.bottom)
-      ..close();
-  }
-
-  Path _domePath(Rect r) {
-    return Path()
-      ..moveTo(r.left, r.bottom)
-      ..arcToPoint(
-        Offset(r.right, r.bottom),
-        radius: Radius.elliptical(r.width / 2, r.height),
-      )
-      ..close();
-  }
-
-  Path _cardShape(StageElementType spec, Rect r) {
-    switch (spec) {
-      case StageElementType.dOctagonPeach:
-      case StageElementType.dOctagonWhite:
-      case StageElementType.dOctagonNoShoot:
-        return _octagonPath(r);
-      case StageElementType.roundHeadLarge:
-      case StageElementType.roundHeadSmall:
-      case StageElementType.ovalHead:
-        return Path()..addOval(r);
-      case StageElementType.teardropHead:
-        return _teardropPath(r);
-      case StageElementType.halfHead:
-        return _domePath(r);
-      case StageElementType.paperTarget:
-      case StageElementType.noShoot:
-      case StageElementType.ipscMiniTarget:
-      case StageElementType.noShootMini:
-      case StageElementType.hardCoverTarget:
-      case StageElementType.hardCoverPartial:
-      case StageElementType.moverTarget:
-      case StageElementType.swingingTarget:
-      case StageElementType.dropTurner:
-      case StageElementType.knockDownTarget:
-        return _ipscPath(r);
-      default:
-        return Path()..addRect(r);
-    }
-  }
-
-  Color _cardFill(StageElementType spec) {
-    const whites = <StageElementType>{
-      StageElementType.noShoot,
-      StageElementType.noShootClassic,
-      StageElementType.noShootMini,
-      StageElementType.classicMiniNoShoot,
-      StageElementType.narrowTargetNoShoot,
-      StageElementType.dOctagonNoShoot,
-      StageElementType.penaltyTarget,
-      StageElementType.ovalHead,
-    };
-    if (whites.contains(spec)) {
-      return Colors.white;
-    }
-    if (spec == StageElementType.knockDownTarget) {
-      return const Color(0xFFCFD8DC);
-    }
-    return _cardboard;
-  }
-
-  bool _isNoShootCard(StageElementType spec) {
-    const noShoots = <StageElementType>{
-      StageElementType.noShoot,
-      StageElementType.noShootClassic,
-      StageElementType.noShootMini,
-      StageElementType.classicMiniNoShoot,
-      StageElementType.narrowTargetNoShoot,
-      StageElementType.dOctagonNoShoot,
-      StageElementType.penaltyTarget,
-    };
-    return noShoots.contains(spec);
-  }
-
   void _drawPaperCard(
     Canvas canvas,
     StageElement element,
@@ -1134,47 +1011,11 @@ class _GalleryPainter3D extends CustomPainter {
     bool isSelected,
   ) {
     final spec = element.type;
-    const floating = <StageElementType>{
-      StageElementType.dOctagonPeach,
-      StageElementType.dOctagonWhite,
-      StageElementType.dOctagonNoShoot,
-      StageElementType.roundHeadLarge,
-      StageElementType.roundHeadSmall,
-      StageElementType.ovalHead,
-      StageElementType.teardropHead,
-      StageElementType.halfHead,
-    };
-    final hasLegs = floating.contains(spec);
-    final cardRect = hasLegs
-        ? Rect.fromLTWH(rect.left, rect.top, rect.width, rect.height * 0.55)
-        : rect;
-
-    if (hasLegs) {
-      final legW = math.max(cardRect.width * 0.08, 1.5);
-      final legH = rect.bottom - cardRect.bottom;
-      final legPaint = Paint()..color = _cardOutline;
-      canvas.drawRect(
-        Rect.fromLTWH(
-          cardRect.left + cardRect.width * 0.2,
-          cardRect.bottom,
-          legW,
-          legH,
-        ),
-        legPaint,
-      );
-      canvas.drawRect(
-        Rect.fromLTWH(
-          cardRect.right - cardRect.width * 0.2 - legW,
-          cardRect.bottom,
-          legW,
-          legH,
-        ),
-        legPaint,
-      );
-    }
-
-    final shape = _cardShape(spec, cardRect);
-    canvas.drawPath(shape, Paint()..color = _cardFill(spec));
+    final shape = _ipscPath(rect);
+    final fill = spec == StageElementType.knockDownTarget
+        ? const Color(0xFFCFD8DC)
+        : Colors.white;
+    canvas.drawPath(shape, Paint()..color = fill);
 
     final cover = spec == StageElementType.hardCoverTarget ||
         spec == StageElementType.hardCoverPartial;
@@ -1182,54 +1023,20 @@ class _GalleryPainter3D extends CustomPainter {
       canvas.save();
       canvas.clipPath(shape);
       canvas.drawRect(
-        Rect.fromLTWH(
-          cardRect.left,
-          cardRect.top,
-          cardRect.width,
-          cardRect.height * 0.4,
-        ),
+        Rect.fromLTWH(rect.left, rect.top, rect.width, rect.height * 0.4),
         Paint()..color = Colors.black87,
       );
       canvas.restore();
     }
 
-    final inset = math.min(cardRect.width, cardRect.height) * 0.09;
+    final inset = math.min(rect.width, rect.height) * 0.09;
     if (inset > 0.5) {
-      final inner = _cardShape(spec, cardRect.deflate(inset));
       canvas.drawPath(
-        inner,
+        _ipscPath(rect.deflate(inset)),
         Paint()
           ..color = _cardOutline
           ..style = PaintingStyle.stroke
-          ..strokeWidth = math.max(cardRect.width * 0.02, 0.8),
-      );
-    }
-
-    if (_isNoShootCard(spec)) {
-      final cross = Paint()
-        ..color = Colors.red
-        ..strokeWidth = math.max(cardRect.width * 0.1, 2);
-      canvas.drawLine(
-        Offset(
-          cardRect.left + cardRect.width * 0.25,
-          cardRect.top + cardRect.height * 0.25,
-        ),
-        Offset(
-          cardRect.right - cardRect.width * 0.25,
-          cardRect.bottom - cardRect.height * 0.25,
-        ),
-        cross,
-      );
-      canvas.drawLine(
-        Offset(
-          cardRect.right - cardRect.width * 0.25,
-          cardRect.top + cardRect.height * 0.25,
-        ),
-        Offset(
-          cardRect.left + cardRect.width * 0.25,
-          cardRect.bottom - cardRect.height * 0.25,
-        ),
-        cross,
+          ..strokeWidth = math.max(rect.width * 0.02, 0.8),
       );
     }
 

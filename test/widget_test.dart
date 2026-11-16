@@ -22,18 +22,18 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('New stage'), findsOneWidget);
-    expect(find.text('Paper target'), findsNothing);
+    expect(find.text('Popper'), findsNothing);
 
     await tester.tap(find.byIcon(Icons.construction));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Paper target'));
+    await tester.tap(find.text('Popper'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Place'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Paper target'), findsNothing);
+    expect(find.text('Popper'), findsNothing);
     expect(find.byIcon(Icons.close), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.close));

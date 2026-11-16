@@ -21,8 +21,19 @@ class Stage {
     return Stage(
       id: stageRow['id'] as String,
       title: stageRow['title'] as String,
-      elements: elementRows.map(StageElement.fromRow).toList(),
+      elements: elementRows
+          .map(_elementFromRowOrNull)
+          .whereType<StageElement>()
+          .toList(),
     );
+  }
+
+  static StageElement? _elementFromRowOrNull(Map<String, dynamic> row) {
+    try {
+      return StageElement.fromRow(row);
+    } on ArgumentError {
+      return null;
+    }
   }
 
   Stage copyWith({

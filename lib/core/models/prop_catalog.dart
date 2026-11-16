@@ -1,5 +1,4 @@
 enum PropCategory {
-  paperTargets('Paper targets'),
   steel('Steel & plates'),
   movers('Movers & activators'),
   hardCoverVision('Hard cover & vision'),
