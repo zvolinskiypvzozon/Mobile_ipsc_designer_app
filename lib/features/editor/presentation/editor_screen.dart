@@ -9,7 +9,7 @@ import '../../../core/models/stage_element.dart';
 import '../../stage_library/providers/stages_provider.dart';
 
 const double kPixelsPerMeter = 50;
-const Size kStageSizeMeters = Size(25, 15);
+const Size kStageSizeMeters = Size(20, 50);
 const double kMinElementWidth = 0.05;
 const double kMaxElementWidth = 8;
 const double kMinElementHeight = 0.05;
@@ -31,6 +31,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   bool _stageInitialized = false;
   String? _selectedElementId;
   bool _saving = false;
+  bool _paletteVisible = false;
   final TransformationController _transformation = TransformationController();
 
   @override
@@ -99,7 +100,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     _updateStage(_stage.copyWith(
       elements: <StageElement>[..._stage.elements, element],
     ));
-    setState(() => _selectedElementId = element.id);
+    setState(() {
+      _selectedElementId = element.id;
+      _paletteVisible = false;
+    });
   }
 
   void _deleteSelected() {
@@ -175,15 +179,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       width: kStageSizeMeters.width * kPixelsPerMeter,
       height: kStageSizeMeters.height * kPixelsPerMeter,
       decoration: BoxDecoration(
-        color: const Color(0xFF101613),
+        color: const Color(0xFF7A6A52),
         border: Border.all(color: Colors.white24),
       ),
       child: CustomPaint(
-        painter: _GridPainter(
-          spacing: kPixelsPerMeter,
-          stageWidth: kStageSizeMeters.width,
-          stageHeight: kStageSizeMeters.height,
-        ),
+        painter: _GalleryPainter(spacing: kPixelsPerMeter),
       ),
     );
   }
@@ -309,6 +309,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   Widget _buildElement(StageElement element) {
+    const double hitAreaPaddingPx = 12;
     final selected = element.id == _selectedElementId;
     final bounds = element.bounds;
     final boundsPx = Rect.fromCenter(
@@ -318,7 +319,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       ),
       width: bounds.width * kPixelsPerMeter,
       height: bounds.height * kPixelsPerMeter,
-    );
+    ).inflate(hitAreaPaddingPx);
     return Positioned(
       left: boundsPx.left,
       top: boundsPx.top,
@@ -353,7 +354,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           alignment: Alignment.center,
           child: Stack(
             clipBehavior: Clip.none,
+            alignment: Alignment.center,
             children: <Widget>[
+              SizedBox(
+                width: boundsPx.width,
+                height: boundsPx.height,
+              ),
               _buildElementView(element),
               if (selected)
                 Positioned(
@@ -482,6 +488,14 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         ),
         actions: <Widget>[
           IconButton(
+            icon: Icon(_paletteVisible
+                ? Icons.close
+                : Icons.construction),
+            tooltip: 'Tools',
+            onPressed: () =>
+                setState(() => _paletteVisible = !_paletteVisible),
+          ),
+          IconButton(
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'Rename',
             onPressed: _renameStage,
@@ -522,7 +536,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
               ),
             ),
           ),
-          _buildPalette(),
+          if (_paletteVisible) _buildPalette(),
           if (selected != null) _buildPropertiesPanel(selected),
           const SizedBox(height: 8),
         ],
@@ -564,43 +578,46 @@ class _LabeledSlider extends StatelessWidget {
   }
 }
 
-class _GridPainter extends CustomPainter {
-  const _GridPainter({
-    required this.spacing,
-    required this.stageWidth,
-    required this.stageHeight,
-  });
+class _GalleryPainter extends CustomPainter {
+  const _GalleryPainter({required this.spacing});
 
   final double spacing;
-  final double stageWidth;
-  final double stageHeight;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final gridPaint = Paint()
-      ..color = Colors.white12
+    final berm = Paint()..color = const Color(0xFF7A6A52);
+    final gravel = Paint()..color = const Color(0xFFA5A19A);
+    final edge = Paint()
+      ..color = const Color(0xFF5A4C39)
+      ..strokeWidth = 3
+      ..style = PaintingStyle.stroke;
+    final line = Paint()
+      ..color = Colors.white24
       ..strokeWidth = 1;
-    for (double x = spacing; x < size.width; x += spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+
+    canvas.drawRect(Offset.zero & size, berm);
+
+    final double left = 1.5 * spacing;
+    final double right = size.width - 1.5 * spacing;
+    final double top = 5 * spacing;
+    final double radius = (right - left) / 2;
+    final corridor = RRect.fromRectAndCorners(
+      Rect.fromLTRB(left, top, right, size.height),
+      topLeft: Radius.circular(radius),
+      topRight: Radius.circular(radius),
+    );
+    canvas.drawRRect(corridor, gravel);
+    canvas.drawRRect(corridor, edge);
+
+    for (double y = 5 * spacing; y <= size.height; y += 5 * spacing) {
+      canvas.drawLine(Offset(left, y), Offset(right, y), line);
     }
-    for (double y = spacing; y < size.height; y += spacing) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), gridPaint);
-    }
-    final meterPaint = Paint()
-      ..color = Colors.white38
-      ..strokeWidth = 2;
-    final meterStep = 5 * spacing;
-    for (double x = meterStep; x < size.width; x += meterStep) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), meterPaint);
-    }
-    for (double y = meterStep; y < size.height; y += meterStep) {
-      canvas.drawLine(Offset(0, y), Offset(size.width, y), meterPaint);
+    for (double x = 5 * spacing; x < size.width; x += 5 * spacing) {
+      canvas.drawLine(Offset(x, 0), Offset(x, size.height), line);
     }
   }
 
   @override
-  bool shouldRepaint(covariant _GridPainter oldDelegate) =>
-      oldDelegate.spacing != spacing ||
-      oldDelegate.stageWidth != stageWidth ||
-      oldDelegate.stageHeight != stageHeight;
+  bool shouldRepaint(covariant _GalleryPainter oldDelegate) =>
+      oldDelegate.spacing != spacing;
 }
