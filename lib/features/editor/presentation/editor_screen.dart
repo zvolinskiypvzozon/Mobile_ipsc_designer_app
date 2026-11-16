@@ -843,6 +843,9 @@ class _GalleryPainter3D extends CustomPainter {
       case StageElementType.ipscStandart:
         _drawIpscStandart(canvas, rect, isSelected);
         break;
+      case StageElementType.ipscMini:
+        _drawIpscMini(canvas, rect, isSelected);
+        break;
       case StageElementType.hardCoverTarget:
       case StageElementType.hardCoverPartial:
       case StageElementType.moverTarget:
@@ -1009,7 +1012,7 @@ class _GalleryPainter3D extends CustomPainter {
       ..close();
   }
 
-  Path _roundedOctagonPath(Rect r) {
+  Path _roundedOctagonPath(Rect r, {double corner = 0.18}) {
     final cx = r.width * 0.28;
     final cy = r.height * 0.28;
     final v = <Offset>[
@@ -1022,7 +1025,7 @@ class _GalleryPainter3D extends CustomPainter {
       Offset(r.left, r.bottom - cy),
       Offset(r.left, r.top + cy),
     ];
-    const k = 0.42;
+    final k = corner;
     final path = Path();
     for (var i = 0; i < v.length; i++) {
       final prev = v[(i - 1 + v.length) % v.length];
@@ -1046,7 +1049,7 @@ class _GalleryPainter3D extends CustomPainter {
       rect.left,
       rect.top,
       rect.width,
-      rect.height * 0.55,
+      rect.height * 0.65,
     );
     final legW = math.max(cardRect.width * 0.07, 1.5);
     final legH = rect.bottom - cardRect.bottom;
@@ -1087,6 +1090,47 @@ class _GalleryPainter3D extends CustomPainter {
         ..color = _cardOutline
         ..style = PaintingStyle.stroke
         ..strokeWidth = isSelected ? 2.5 : 1.2,
+    );
+  }
+
+  void _drawIpscMini(Canvas canvas, Rect rect, bool isSelected) {
+    final cardW = rect.width * 0.62;
+    final cardRect = Rect.fromLTWH(
+      rect.center.dx - cardW / 2,
+      rect.top,
+      cardW,
+      rect.height * 0.34,
+    );
+    final legW = math.max(rect.width * 0.05, 1.0);
+    final legH = rect.bottom - cardRect.bottom;
+    final legPaint = Paint()..color = _cardOutline;
+    final spacing = rect.width * 0.16;
+    canvas.drawRect(
+      Rect.fromLTWH(
+        rect.center.dx - spacing - legW / 2,
+        cardRect.bottom - legH * 0.04,
+        legW,
+        legH,
+      ),
+      legPaint,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(
+        rect.center.dx + spacing - legW / 2,
+        cardRect.bottom - legH * 0.04,
+        legW,
+        legH,
+      ),
+      legPaint,
+    );
+    final shape = _roundedOctagonPath(cardRect, corner: 0.10);
+    canvas.drawPath(shape, Paint()..color = Colors.white);
+    canvas.drawPath(
+      shape,
+      Paint()
+        ..color = _cardOutline
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isSelected ? 2 : 1,
     );
   }
 

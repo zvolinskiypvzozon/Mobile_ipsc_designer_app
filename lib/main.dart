@@ -1,4 +1,3 @@
-import 'package:flutter/widgets.dart' show GlobalWidgetsLocalizations;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -36,10 +35,7 @@ class IpscDesignerApp extends ConsumerWidget {
       theme: AppTheme.light,
       locale: const Locale('ru'),
       supportedLocales: const [Locale('ru'), Locale('en')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-      ],
+      localizationsDelegates: GlobalMaterialLocalizations.delegates,
       initialRoute: needsLogin ? AppRoutes.login : AppRoutes.stageLibrary,
       routes: AppRouter.routes,
     );

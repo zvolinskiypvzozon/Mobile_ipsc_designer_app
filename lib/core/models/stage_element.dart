@@ -4,6 +4,7 @@ import 'prop_catalog.dart';
 
 enum StageElementType {
   ipscStandart(PropCategory.ipscTargets, 'IPSC Standart', 0.45, 0.80, Color(0xFFFFFFFF)),
+  ipscMini(PropCategory.ipscTargets, 'IPSC Mini', 0.30, 0.55, Color(0xFFFFFFFF)),
   popper(PropCategory.steel, 'Поппер', 0.35, 1.0, Color(0xFFFF9800)),
   miniPopper(PropCategory.steel, 'Мини-поппер', 0.25, 0.75, Color(0xFFFF9800)),
   plate(PropCategory.steel, 'Пластина', 0.25, 0.25, Color(0xFFCFD8DC)),
