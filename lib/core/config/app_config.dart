@@ -1,3 +1,5 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 class AppConfig {
   const AppConfig({
     required this.supabaseUrl,
@@ -19,3 +21,5 @@ class AppConfig {
   bool get isConfigured =>
       supabaseUrl.isNotEmpty && supabasePublishableKey.isNotEmpty;
 }
+
+final supabaseReadyProvider = Provider<bool>((ref) => false);

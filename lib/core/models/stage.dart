@@ -14,6 +14,17 @@ class Stage {
   final String title;
   final List<StageElement> elements;
 
+  factory Stage.fromRows(
+    Map<String, dynamic> stageRow,
+    List<Map<String, dynamic>> elementRows,
+  ) {
+    return Stage(
+      id: stageRow['id'] as String,
+      title: stageRow['title'] as String,
+      elements: elementRows.map(StageElement.fromRow).toList(),
+    );
+  }
+
   Stage copyWith({
     String? id,
     String? title,

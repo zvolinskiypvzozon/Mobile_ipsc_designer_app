@@ -9,24 +9,31 @@ import 'core/theme/app_theme.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   final config = AppConfig.fromEnvironment();
+  var supabaseReady = false;
   if (config.isConfigured) {
     await Supabase.initialize(
       url: config.supabaseUrl,
       publishableKey: config.supabasePublishableKey,
     );
+    supabaseReady = true;
   }
-  runApp(const ProviderScope(child: IpscDesignerApp()));
+  runApp(ProviderScope(
+    overrides: [supabaseReadyProvider.overrideWithValue(supabaseReady)],
+    child: const IpscDesignerApp(),
+  ));
 }
 
-class IpscDesignerApp extends StatelessWidget {
+class IpscDesignerApp extends ConsumerWidget {
   const IpscDesignerApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final needsLogin = ref.watch(supabaseReadyProvider) &&
+        Supabase.instance.client.auth.currentSession == null;
     return MaterialApp(
       title: 'IPSC Stage Designer',
       theme: AppTheme.light,
-      initialRoute: AppRoutes.stageLibrary,
+      initialRoute: needsLogin ? AppRoutes.login : AppRoutes.stageLibrary,
       routes: AppRouter.routes,
     );
   }
