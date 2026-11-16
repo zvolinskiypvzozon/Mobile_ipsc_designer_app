@@ -42,7 +42,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (args is Stage) {
       _stage = args;
     } else {
-      _stage = Stage(id: _uuid.v4(), title: 'New stage');
+      _stage = Stage(id: _uuid.v4(), title: 'Новый стейдж');
     }
     _stageInitialized = true;
   }
@@ -102,21 +102,21 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Rename stage'),
+          title: const Text('Переименовать стейдж'),
           content: TextField(
             controller: controller,
             autofocus: true,
-            decoration: const InputDecoration(labelText: 'Title'),
+            decoration: const InputDecoration(labelText: 'Название'),
           ),
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(),
-              child: const Text('Cancel'),
+              child: const Text('Отмена'),
             ),
             FilledButton(
               onPressed: () =>
                   Navigator.of(dialogContext).pop(controller.text.trim()),
-              child: const Text('Rename'),
+              child: const Text('Переименовать'),
             ),
           ],
         );
@@ -138,11 +138,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     final navigator = Navigator.of(context);
     try {
       await ref.read(stagesProvider.notifier).save(_stage);
-      messenger.showSnackBar(const SnackBar(content: Text('Stage saved')));
+      messenger.showSnackBar(const SnackBar(content: Text('Стейдж сохранён')));
       navigator.pop();
     } catch (error) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Save failed: $error')),
+        SnackBar(content: Text('Ошибка сохранения: $error')),
       );
       if (mounted) {
         setState(() => _saving = false);
@@ -152,6 +152,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   IconData _categoryIcon(PropCategory category) {
     switch (category) {
+      case PropCategory.ipscTargets:
+        return Icons.adjust;
       case PropCategory.steel:
         return Icons.disc_full;
       case PropCategory.movers:
@@ -182,7 +184,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                 Padding(
                   padding: const EdgeInsets.all(16),
                   child: Text(
-                    'Prop library',
+                    'Библиотека пропов',
                     style: Theme.of(sheetContext).textTheme.titleMedium,
                   ),
                 ),
@@ -226,21 +228,21 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: Text('Place ${selected.label}'),
+          title: Text('Установить ${selected.label}'),
           content: Text(
             selected.archetype == PropArchetype.floorLine
-                ? 'Draw it by dragging on the gallery floor.'
-                : 'Tap the gallery floor to place it. '
-                    'The tool stays active until you finish it.',
+                ? 'Нарисуйте линию, протянув палец или мышь по полу галереи.'
+                : 'Коснитесь пола галереи, чтобы установить. '
+                    'Инструмент остаётся активным, пока вы его не завершите.',
           ),
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
+              child: const Text('Отмена'),
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Place'),
+              child: const Text('Поставить'),
             ),
           ],
         );
@@ -412,8 +414,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   Widget _buildModeBanner() {
     final tool = _armedTool!;
     final hint = tool.archetype == PropArchetype.floorLine
-        ? 'drag on the floor to draw'
-        : 'tap the floor to place';
+        ? 'протяните по полу, чтобы нарисовать'
+        : 'коснитесь пола, чтобы поставить';
     return Container(
       color: Colors.black26,
       padding: const EdgeInsets.symmetric(horizontal: 8),
@@ -422,12 +424,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           Expanded(
             child: Padding(
               padding: const EdgeInsets.symmetric(vertical: 8),
-              child: Text('Placing: ${tool.label} — $hint'),
+              child: Text('Установка: ${tool.label} — $hint'),
             ),
           ),
           IconButton(
             icon: const Icon(Icons.close),
-            tooltip: 'Finish placing',
+            tooltip: 'Завершить установку',
             onPressed: () => setState(() {
               _armedTool = null;
               _drawStart = null;
@@ -452,18 +454,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         actions: <Widget>[
           IconButton(
             icon: const Icon(Icons.construction),
-            tooltip: 'Tools',
+            tooltip: 'Инструменты',
             onPressed: _openToolsMenu,
           ),
           if (selected != null)
             IconButton(
               icon: const Icon(Icons.delete_outline),
-              tooltip: 'Delete element',
+              tooltip: 'Удалить элемент',
               onPressed: _deleteSelected,
             ),
           IconButton(
             icon: const Icon(Icons.edit_outlined),
-            tooltip: 'Rename',
+            tooltip: 'Переименовать',
             onPressed: _renameStage,
           ),
           IconButton(
@@ -474,7 +476,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                     child: CircularProgressIndicator(strokeWidth: 2),
                   )
                 : const Icon(Icons.check),
-            tooltip: 'Save',
+            tooltip: 'Сохранить',
             onPressed: _saving ? null : _save,
           ),
         ],
@@ -838,6 +840,9 @@ class _GalleryPainter3D extends CustomPainter {
           rim,
         );
         break;
+      case StageElementType.ipscStandart:
+        _drawIpscStandart(canvas, rect, isSelected);
+        break;
       case StageElementType.hardCoverTarget:
       case StageElementType.hardCoverPartial:
       case StageElementType.moverTarget:
@@ -1002,6 +1007,87 @@ class _GalleryPainter3D extends CustomPainter {
       ..lineTo(rect.left + topInset, rect.top)
       ..lineTo(rect.left, cutY)
       ..close();
+  }
+
+  Path _roundedOctagonPath(Rect r) {
+    final cx = r.width * 0.28;
+    final cy = r.height * 0.28;
+    final v = <Offset>[
+      Offset(r.left + cx, r.top),
+      Offset(r.right - cx, r.top),
+      Offset(r.right, r.top + cy),
+      Offset(r.right, r.bottom - cy),
+      Offset(r.right - cx, r.bottom),
+      Offset(r.left + cx, r.bottom),
+      Offset(r.left, r.bottom - cy),
+      Offset(r.left, r.top + cy),
+    ];
+    const k = 0.42;
+    final path = Path();
+    for (var i = 0; i < v.length; i++) {
+      final prev = v[(i - 1 + v.length) % v.length];
+      final cur = v[i];
+      final next = v[(i + 1) % v.length];
+      final p1 = Offset.lerp(cur, prev, k)!;
+      final p2 = Offset.lerp(cur, next, k)!;
+      if (i == 0) {
+        path.moveTo(p1.dx, p1.dy);
+      } else {
+        path.lineTo(p1.dx, p1.dy);
+      }
+      path.quadraticBezierTo(cur.dx, cur.dy, p2.dx, p2.dy);
+    }
+    path.close();
+    return path;
+  }
+
+  void _drawIpscStandart(Canvas canvas, Rect rect, bool isSelected) {
+    final cardRect = Rect.fromLTWH(
+      rect.left,
+      rect.top,
+      rect.width,
+      rect.height * 0.55,
+    );
+    final legW = math.max(cardRect.width * 0.07, 1.5);
+    final legH = rect.bottom - cardRect.bottom;
+    final legPaint = Paint()..color = _cardOutline;
+    canvas.drawRect(
+      Rect.fromLTWH(
+        cardRect.left + cardRect.width * 0.28,
+        cardRect.bottom - legH * 0.06,
+        legW,
+        legH,
+      ),
+      legPaint,
+    );
+    canvas.drawRect(
+      Rect.fromLTWH(
+        cardRect.right - cardRect.width * 0.28 - legW,
+        cardRect.bottom - legH * 0.06,
+        legW,
+        legH,
+      ),
+      legPaint,
+    );
+    final shape = _roundedOctagonPath(cardRect);
+    canvas.drawPath(shape, Paint()..color = Colors.white);
+    final inset = cardRect.width * 0.09;
+    if (inset > 0.5) {
+      canvas.drawPath(
+        _roundedOctagonPath(cardRect.deflate(inset)),
+        Paint()
+          ..color = _cardOutline
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = math.max(cardRect.width * 0.02, 0.8),
+      );
+    }
+    canvas.drawPath(
+      shape,
+      Paint()
+        ..color = _cardOutline
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isSelected ? 2.5 : 1.2,
+    );
   }
 
   void _drawPaperCard(

@@ -19,29 +19,29 @@ class SettingsScreen extends ConsumerWidget {
     final ready = ref.watch(supabaseReadyProvider);
     final user = ready ? Supabase.instance.client.auth.currentUser : null;
     return Scaffold(
-      appBar: AppBar(title: const Text('Settings')),
+      appBar: AppBar(title: const Text('Настройки')),
       body: ListView(
         children: <Widget>[
           ListTile(
             leading: const Icon(Icons.cloud_outlined),
-            title: const Text('Backend'),
+            title: const Text('Бэкенд'),
             subtitle: Text(
               ready
-                  ? 'Supabase (${user != null ? 'signed in' : 'signed out'})'
-                  : 'Offline mode: run with SUPABASE_URL and '
-                      'SUPABASE_PUBLISHABLE_KEY dart-defines',
+                  ? 'Supabase (${user != null ? 'вход выполнен' : 'вход не выполнен'})'
+                  : 'Оффлайн-режим: запустите с SUPABASE_URL и '
+                      'SUPABASE_PUBLISHABLE_KEY',
             ),
           ),
           if (user != null)
             ListTile(
               leading: const Icon(Icons.person_outline),
-              title: const Text('Account'),
+              title: const Text('Аккаунт'),
               subtitle: Text(user.email ?? user.id),
             ),
           if (user != null)
             ListTile(
               leading: const Icon(Icons.logout),
-              title: const Text('Sign out'),
+              title: const Text('Выйти'),
               onTap: () => _signOut(context),
             ),
         ],

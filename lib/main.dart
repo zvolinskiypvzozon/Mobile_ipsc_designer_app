@@ -1,3 +1,4 @@
+import 'package:flutter/widgets.dart' show GlobalWidgetsLocalizations;
 import 'package:material_ui/material_ui.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -31,8 +32,14 @@ class IpscDesignerApp extends ConsumerWidget {
     final needsLogin = ref.watch(supabaseReadyProvider) &&
         Supabase.instance.client.auth.currentSession == null;
     return MaterialApp(
-      title: 'IPSC Stage Designer',
+      title: 'Дизайнер стейджей IPSC',
       theme: AppTheme.light,
+      locale: const Locale('ru'),
+      supportedLocales: const [Locale('ru'), Locale('en')],
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+      ],
       initialRoute: needsLogin ? AppRoutes.login : AppRoutes.stageLibrary,
       routes: AppRouter.routes,
     );

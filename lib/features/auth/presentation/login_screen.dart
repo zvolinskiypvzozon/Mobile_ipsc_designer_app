@@ -38,8 +38,8 @@ class _LoginScreenState extends State<LoginScreen> {
         await auth.signUp(password: password, email: email);
         messenger.showSnackBar(
           const SnackBar(
-            content: Text('Account created. If email confirmation is '
-                'enabled, confirm it first, then sign in.'),
+            content: Text('Аккаунт создан. Если включено подтверждение '
+                'email — подтвердите его и войдите.'),
           ),
         );
       } else {
@@ -52,7 +52,7 @@ class _LoginScreenState extends State<LoginScreen> {
       messenger.showSnackBar(SnackBar(content: Text(error.message)));
     } catch (error) {
       messenger.showSnackBar(
-        SnackBar(content: Text('Unexpected error: $error')),
+        SnackBar(content: Text('Неожиданная ошибка: $error')),
       );
     } finally {
       if (mounted) {
@@ -64,7 +64,7 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('IPSC Stage Designer')),
+      appBar: AppBar(title: const Text('Дизайнер стейджей IPSC')),
       body: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -86,7 +86,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       if (value == null ||
                           !value.contains('@') ||
                           value.trim().length < 5) {
-                        return 'Enter a valid email';
+                        return 'Введите корректный email';
                       }
                       return null;
                     },
@@ -95,12 +95,12 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextFormField(
                     controller: _passwordController,
                     decoration:
-                        const InputDecoration(labelText: 'Password'),
+                        const InputDecoration(labelText: 'Пароль'),
                     obscureText: true,
                     autofillHints: const [AutofillHints.password],
                     validator: (value) {
                       if (value == null || value.length < 6) {
-                        return 'Password must be at least 6 characters';
+                        return 'Пароль должен быть не короче 6 символов';
                       }
                       return null;
                     },
@@ -109,13 +109,13 @@ class _LoginScreenState extends State<LoginScreen> {
                   FilledButton(
                     onPressed:
                         _busy ? null : () => _submit(signUp: false),
-                    child: const Text('Sign in'),
+                    child: const Text('Войти'),
                   ),
                   const SizedBox(height: 8),
                   OutlinedButton(
                     onPressed:
                         _busy ? null : () => _submit(signUp: true),
-                    child: const Text('Sign up'),
+                    child: const Text('Регистрация'),
                   ),
                 ],
               ),

@@ -5,35 +5,38 @@ import 'package:material_ui/material_ui.dart';
 import 'package:mobile_ipsc_designer_app/main.dart';
 
 void main() {
-  testWidgets('Stage library renders', (WidgetTester tester) async {
+  testWidgets('Библиотека стейджей открывается', (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: IpscDesignerApp()));
     await tester.pumpAndSettle();
 
-    expect(find.text('Stage library'), findsOneWidget);
-    expect(find.text('No stages yet. Tap + to create one.'), findsOneWidget);
+    expect(find.text('Библиотека стейджей'), findsOneWidget);
+    expect(
+      find.text('Стейджей пока нет. Нажмите «Создать».'),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('Editor: tools menu, confirmation and placement mode',
+  testWidgets('Редактор: меню инструментов, подтверждение и установка',
       (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: IpscDesignerApp()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('New stage'));
+    await tester.tap(find.text('Создать'));
     await tester.pumpAndSettle();
 
-    expect(find.text('New stage'), findsOneWidget);
-    expect(find.text('Popper'), findsNothing);
+    expect(find.text('Новый стейдж'), findsOneWidget);
+    expect(find.text('Поппер'), findsNothing);
 
     await tester.tap(find.byIcon(Icons.construction));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Popper'));
+    await tester.tap(find.text('Поппер'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Place'));
+    await tester.tap(find.text('Поставить'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Popper'), findsNothing);
+    expect(find.text('Поппер'), findsNothing);
     expect(find.byIcon(Icons.close), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.close));

@@ -1,11 +1,12 @@
 enum PropCategory {
-  steel('Steel & plates'),
-  movers('Movers & activators'),
-  hardCoverVision('Hard cover & vision'),
-  barricades('Barricades'),
-  doorsPorts('Doors & ports'),
-  markers('Stage markers'),
-  support('Support structures');
+  ipscTargets('МИШЕНИ IPSC'),
+  steel('СТАЛЬНЫЕ МИШЕНИ'),
+  movers('ДВИЖУЩИЕСЯ И АКТИВАТОРЫ'),
+  hardCoverVision('ХАРД-КАВЕР И ВИЗИОН'),
+  barricades('БАРРИКАДЫ'),
+  doorsPorts('ДВЕРИ И ПОРТЫ'),
+  markers('МАРКЕРЫ СТЕЙДЖА'),
+  support('ОПОРНЫЕ КОНСТРУКЦИИ');
 
   const PropCategory(this.label);
 

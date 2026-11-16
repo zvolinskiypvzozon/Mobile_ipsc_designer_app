@@ -11,9 +11,19 @@ class StageLibraryScreen extends ConsumerWidget {
 
   static const _uuid = Uuid();
 
+  String _elementCount(int count) {
+    if (count % 10 == 1 && count % 100 != 11) {
+      return '$count элемент';
+    }
+    if (count % 10 >= 2 && count % 10 <= 4 && (count % 100 < 12 || count % 100 > 14)) {
+      return '$count элемента';
+    }
+    return '$count элементов';
+  }
+
   Future<void> _openEditor(BuildContext context, Stage? stage) async {
     final stageToOpen = stage ??
-        Stage(id: _uuid.v4(), title: 'New stage');
+        Stage(id: _uuid.v4(), title: 'Новый стейдж');
     await Navigator.of(context)
         .pushNamed(AppRoutes.editor, arguments: stageToOpen);
   }
@@ -23,16 +33,16 @@ class StageLibraryScreen extends ConsumerWidget {
       context: context,
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Delete stage'),
-          content: Text('Delete "${stage.title}"? This cannot be undone.'),
+          title: const Text('Удалить стейдж'),
+          content: Text('Удалить «${stage.title}»? Действие необратимо.'),
           actions: <Widget>[
             TextButton(
               onPressed: () => Navigator.of(dialogContext).pop(false),
-              child: const Text('Cancel'),
+              child: const Text('Отмена'),
             ),
             FilledButton(
               onPressed: () => Navigator.of(dialogContext).pop(true),
-              child: const Text('Delete'),
+              child: const Text('Удалить'),
             ),
           ],
         );
@@ -47,11 +57,11 @@ class StageLibraryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final stagesAsync = ref.watch(stagesProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Stage library')),
+      appBar: AppBar(title: const Text('Библиотека стейджей')),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context, null),
         icon: const Icon(Icons.add),
-        label: const Text('New stage'),
+        label: const Text('Создать'),
       ),
       body: stagesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
@@ -59,13 +69,13 @@ class StageLibraryScreen extends ConsumerWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              const Text('Failed to load stages'),
+              const Text('Не удалось загрузить стейджи'),
               const SizedBox(height: 8),
               Text('$error', textAlign: TextAlign.center),
               const SizedBox(height: 8),
               FilledButton(
                 onPressed: () => ref.invalidate(stagesProvider),
-                child: const Text('Retry'),
+                child: const Text('Повторить'),
               ),
             ],
           ),
@@ -73,7 +83,7 @@ class StageLibraryScreen extends ConsumerWidget {
         data: (List<Stage> stages) {
           if (stages.isEmpty) {
             return const Center(
-              child: Text('No stages yet. Tap + to create one.'),
+              child: Text('Стейджей пока нет. Нажмите «Создать».'),
             );
           }
           return ListView.builder(
@@ -82,11 +92,11 @@ class StageLibraryScreen extends ConsumerWidget {
               final stage = stages[index];
               return ListTile(
                 title: Text(stage.title),
-                subtitle: Text('${stage.elements.length} elements'),
+                subtitle: Text(_elementCount(stage.elements.length)),
                 leading: const Icon(Icons.map_outlined),
                 trailing: IconButton(
                   icon: const Icon(Icons.delete_outline),
-                  tooltip: 'Delete',
+                  tooltip: 'Удалить',
                   onPressed: () => _confirmDelete(context, ref, stage),
                 ),
                 onTap: () => _openEditor(context, stage),
