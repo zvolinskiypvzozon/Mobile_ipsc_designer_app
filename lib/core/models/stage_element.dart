@@ -1,57 +1,99 @@
 import 'package:flutter/widgets.dart';
 
+import 'prop_catalog.dart';
+
 enum StageElementType {
-  paperTarget,
-  popper,
-  plate,
-  noShoot,
-  wall,
-  barrier,
-  faultLine,
-  shootingPosition,
-}
+  paperTarget(PropCategory.paperTargets, 'Paper target', 0.45, 0.75, Color(0xFFFFFFFF)),
+  ipscMiniTarget(PropCategory.paperTargets, 'IPSC mini', 0.30, 0.50, Color(0xFFFFFFFF)),
+  classicTarget(PropCategory.paperTargets, 'Classic target', 0.45, 0.75, Color(0xFFEFE8DC)),
+  classicMiniTarget(PropCategory.paperTargets, 'Classic mini', 0.30, 0.50, Color(0xFFEFE8DC)),
+  partialTarget(PropCategory.paperTargets, 'Partial target', 0.45, 0.55, Color(0xFFFFFFFF)),
+  noShoot(PropCategory.paperTargets, 'No-shoot', 0.45, 0.75, Color(0xFFF5F5F5)),
+  noShootClassic(PropCategory.paperTargets, 'No-shoot classic', 0.45, 0.75, Color(0xFFF5F5F5)),
+  noShootMini(PropCategory.paperTargets, 'No-shoot mini', 0.30, 0.50, Color(0xFFF5F5F5)),
+  popper(PropCategory.steel, 'Popper', 0.35, 1.0, Color(0xFFFF9800)),
+  miniPopper(PropCategory.steel, 'Mini popper', 0.25, 0.75, Color(0xFFFF9800)),
+  plate(PropCategory.steel, 'Plate', 0.25, 0.25, Color(0xFFCFD8DC)),
+  plateLarge(PropCategory.steel, 'Plate large', 0.40, 0.40, Color(0xFFCFD8DC)),
+  plateRack(PropCategory.steel, 'Plate rack', 1.2, 0.9, Color(0xFF90A4AE)),
+  texasStar(PropCategory.steel, 'Texas star', 1.2, 1.2, Color(0xFFB0BEC5)),
+  spinner(PropCategory.steel, 'Spinner', 0.9, 0.9, Color(0xFFB0BEC5)),
+  bowlingPin(PropCategory.steel, 'Bowling pin', 0.19, 0.38, Color(0xFFF5F5F5)),
+  knockDownTarget(PropCategory.steel, 'Knock-down target', 0.45, 0.75, Color(0xFFB0BEC5)),
+  activatorPad(PropCategory.movers, 'Activator pad', 0.50, 0.35, Color(0xFF9E9E9E)),
+  moverTarget(PropCategory.movers, 'Mover target', 0.45, 0.75, Color(0xFFFFFFFF)),
+  swingingTarget(PropCategory.movers, 'Swinging target', 0.45, 0.75, Color(0xFFFFFFFF)),
+  dropTurner(PropCategory.movers, 'Drop-turner', 0.45, 0.75, Color(0xFFFFFFFF)),
+  moverRail(PropCategory.movers, 'Mover rail', 2.0, 0.10, Color(0xFF78909C)),
+  hardCoverTarget(PropCategory.hardCoverVision, 'Hard cover', 0.45, 0.75, Color(0xFFFFFFFF)),
+  hardCoverPartial(PropCategory.hardCoverVision, 'Hard cover partial', 0.45, 0.55, Color(0xFFFFFFFF)),
+  visionBarrier(PropCategory.hardCoverVision, 'Vision barrier', 1.8, 1.1, Color(0xFF90A4AE)),
+  visionBarrierNarrow(PropCategory.hardCoverVision, 'Vision barrier narrow', 0.9, 1.1, Color(0xFF90A4AE)),
+  wall(PropCategory.barricades, 'Wall', 1.8, 2.0, Color(0xFF4A4A4A)),
+  barrier(PropCategory.barricades, 'Barrier', 1.8, 1.1, Color(0xFFFF9800)),
+  barrel(PropCategory.barricades, 'Barrel', 0.6, 0.9, Color(0xFFD84315)),
+  barrelDouble(PropCategory.barricades, 'Double barrel', 0.6, 1.8, Color(0xFFD84315)),
+  hayBale(PropCategory.barricades, 'Hay bale', 1.0, 0.8, Color(0xFFC9B458)),
+  sandbagWall(PropCategory.barricades, 'Sandbag wall', 1.2, 0.6, Color(0xFFBDB76B)),
+  door(PropCategory.doorsPorts, 'Door', 0.9, 2.0, Color(0xFF795548)),
+  doorWithWindow(PropCategory.doorsPorts, 'Door with window', 0.9, 2.0, Color(0xFF795548)),
+  widePort(PropCategory.doorsPorts, 'Wide port', 1.5, 1.0, Color(0xFF8D6E63)),
+  windowFrame(PropCategory.doorsPorts, 'Window frame', 1.0, 0.6, Color(0xFF8D6E63)),
+  portSquare(PropCategory.doorsPorts, 'Square port', 0.6, 0.6, Color(0xFF8D6E63)),
+  faultLine(PropCategory.markers, 'Fault line', 3.0, 0.05, Color(0xFFFFEB3B)),
+  stopTape(PropCategory.markers, 'Stop tape', 1.5, 0.05, Color(0xFFE53935)),
+  dashedLine(PropCategory.markers, 'Dashed line', 1.5, 0.05, Color(0xFFEEEEEE)),
+  spMarker(PropCategory.markers, 'SP marker', 0.40, 0.40, Color(0xFF1E88E5)),
+  xxMarker(PropCategory.markers, 'XX marker', 0.30, 0.30, Color(0xFFEEEEEE)),
+  cone(PropCategory.markers, 'Cone', 0.30, 0.50, Color(0xFFFF7043)),
+  redOutline(PropCategory.markers, 'Red outline', 0.45, 0.75, Color(0xFFE53935)),
+  shootingPosition(PropCategory.markers, 'Shooting position', 1.0, 1.0, Color(0xFF1E88E5)),
+  table(PropCategory.support, 'Table', 1.8, 0.75, Color(0xFF8D6E63)),
+  sawhorse(PropCategory.support, 'Sawhorse', 1.2, 0.8, Color(0xFF8D6E63)),
+  bench(PropCategory.support, 'Bench', 1.5, 0.45, Color(0xFF8D6E63)),
+  pallet(PropCategory.support, 'Pallet', 1.2, 1.0, Color(0xFFA1887F)),
+  chair(PropCategory.support, 'Chair', 0.5, 0.9, Color(0xFF6D4C41)),
+  stackBoxes(PropCategory.support, 'Boxes', 0.8, 1.0, Color(0xFFA1887F)),
+  mannequin(PropCategory.support, 'Mannequin', 0.5, 1.8, Color(0xFF9E9E9E));
 
-extension StageElementTypeLabel on StageElementType {
-  String get label {
-    switch (this) {
-      case StageElementType.paperTarget:
-        return 'Paper target';
-      case StageElementType.popper:
-        return 'Popper';
-      case StageElementType.plate:
-        return 'Plate';
-      case StageElementType.noShoot:
-        return 'No-shoot';
-      case StageElementType.wall:
-        return 'Wall';
-      case StageElementType.barrier:
-        return 'Barrier';
-      case StageElementType.faultLine:
-        return 'Fault line';
-      case StageElementType.shootingPosition:
-        return 'Shooting position';
-    }
-  }
+  const StageElementType(
+    this.category,
+    this.label,
+    this.width,
+    this.height,
+    this.color,
+  );
 
-  Size get defaultSize {
-    switch (this) {
-      case StageElementType.paperTarget:
-        return const Size(0.45, 0.75);
-      case StageElementType.popper:
-        return const Size(0.35, 1.0);
-      case StageElementType.plate:
-        return const Size(0.25, 0.25);
-      case StageElementType.noShoot:
-        return const Size(0.45, 0.75);
-      case StageElementType.wall:
-        return const Size(2.4, 2.2);
-      case StageElementType.barrier:
-        return const Size(2.4, 2.0);
-      case StageElementType.faultLine:
-        return const Size(3.0, 0.05);
-      case StageElementType.shootingPosition:
-        return const Size(1.0, 1.0);
+  final PropCategory category;
+  final String label;
+  final double width;
+  final double height;
+  final Color color;
+
+  Size get defaultSize => Size(width, height);
+
+  PropArchetype get archetype {
+    const floorLines = <StageElementType>{
+      faultLine,
+      stopTape,
+      dashedLine,
+      moverRail,
+    };
+    const floorDiscs = <StageElementType>{
+      plate,
+      plateLarge,
+      shootingPosition,
+      spMarker,
+      xxMarker,
+      activatorPad,
+    };
+    if (floorLines.contains(this)) {
+      return PropArchetype.floorLine;
     }
+    if (floorDiscs.contains(this)) {
+      return PropArchetype.floorDisc;
+    }
+    return PropArchetype.billboard;
   }
 }
 
