@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
 import 'package:uuid/uuid.dart';
 
@@ -28,9 +29,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   (double, double)? _drawStart;
   (double, double)? _drawCurrent;
   Offset _lastDelta = Offset.zero;
+  Offset _dragRawPos = Offset.zero;
+  final FocusNode _canvasFocus = FocusNode();
 
   @override
   void dispose() {
+    _canvasFocus.dispose();
     super.dispose();
   }
 
@@ -310,9 +314,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   void _onTapUp(Offset local, Size size) {
+    _canvasFocus.requestFocus();
     final p = _Perspective(size);
     if (_armedTool != null) {
       if (_armedTool!.archetype == PropArchetype.floorLine) {
+        return;
+      }
+      final hit = _hitTestElement(p, local);
+      if (hit != null) {
+        setState(() => _selectedElementId = hit);
         return;
       }
       final floor = p.floorFromScreen(local);
@@ -339,6 +349,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     setState(() {
       _selectedElementId = hit;
       _draggingElement = hit != null;
+      if (hit != null) {
+        _dragRawPos = _stage
+            .elements
+            .firstWhere((element) => element.id == hit)
+            .position;
+      }
     });
   }
 
@@ -360,20 +376,68 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       return;
     }
     final p = _Perspective(size);
-    final d = p.dOf(element.position.dy);
-    final baseY = p.floorPoint(element.position.dx, element.position.dy).dy;
+    final dRaw = p.dOf(_dragRawPos.dy);
+    final baseY = p.screenYFromD(dRaw);
     final newBaseY = baseY + _lastDelta.dy;
     final dy = newBaseY - p.horizonY;
-    double newY = element.position.dy;
+    double newY = _dragRawPos.dy;
     if (dy > 1) {
       final newD = p.kv * _Perspective.camHeight / dy;
       newY = (_Perspective.camDepth - newD).clamp(0.0, _Perspective.nearY);
     }
-    final newX = (element.position.dx + _lastDelta.dx * d / p.kx).clamp(
+    final newX = (_dragRawPos.dx + _lastDelta.dx * dRaw / p.kx).clamp(
       -_Perspective.stageHalfWidth,
       _Perspective.stageHalfWidth,
     );
-    _updateElement(element.copyWith(position: Offset(newX, newY)));
+    _dragRawPos = Offset(newX, newY);
+    _updateElement(
+      element.copyWith(position: _snapAttach(element, _dragRawPos)),
+    );
+  }
+
+  Offset _snapAttach(StageElement dragged, Offset position) {
+    const snapDistance = 0.3;
+    Offset? best;
+    var bestDist = double.infinity;
+    for (final other in _stage.elements) {
+      if (other.id == dragged.id ||
+          other.type.archetype != PropArchetype.billboard ||
+          other.rotation != 0) {
+        continue;
+      }
+      final candidates = <Offset>[
+        Offset(
+          other.position.dx - other.width / 2 - dragged.width / 2,
+          other.position.dy,
+        ),
+        Offset(
+          other.position.dx + other.width / 2 + dragged.width / 2,
+          other.position.dy,
+        ),
+        Offset(
+          other.position.dx,
+          other.position.dy - other.height / 2 - dragged.height / 2,
+        ),
+        Offset(
+          other.position.dx,
+          other.position.dy + other.height / 2 + dragged.height / 2,
+        ),
+      ];
+      for (final candidate in candidates) {
+        final dist = (candidate - position).distance;
+        if (dist < bestDist) {
+          bestDist = dist;
+          best = candidate;
+        }
+      }
+    }
+    if (best == null || bestDist > snapDistance) {
+      return position;
+    }
+    return Offset(
+      best.dx.clamp(-_Perspective.stageHalfWidth, _Perspective.stageHalfWidth),
+      best.dy.clamp(0.0, _Perspective.nearY),
+    );
   }
 
   void _onPanEnd() {
@@ -409,6 +473,44 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       return;
     }
     setState(() => _draggingElement = false);
+  }
+
+  KeyEventResult _onKeyEvent(FocusNode node, KeyEvent event) {
+    if (_selectedElementId == null ||
+        (event is! KeyDownEvent && event is! KeyRepeatEvent)) {
+      return KeyEventResult.ignored;
+    }
+    final step = HardwareKeyboard.instance.isShiftPressed ? 0.5 : 0.1;
+    double? dx;
+    double? dy;
+    switch (event.logicalKey) {
+      case LogicalKeyboardKey.arrowLeft:
+        dx = -step;
+      case LogicalKeyboardKey.arrowRight:
+        dx = step;
+      case LogicalKeyboardKey.arrowUp:
+        dy = -step;
+      case LogicalKeyboardKey.arrowDown:
+        dy = step;
+      default:
+        return KeyEventResult.ignored;
+    }
+    final element = _selectedElement;
+    if (element == null) {
+      return KeyEventResult.ignored;
+    }
+    _updateElement(
+      element.copyWith(
+        position: Offset(
+          (element.position.dx + (dx ?? 0)).clamp(
+            -_Perspective.stageHalfWidth,
+            _Perspective.stageHalfWidth,
+          ),
+          (element.position.dy + (dy ?? 0)).clamp(0.0, _Perspective.nearY),
+        ),
+      ),
+    );
+    return KeyEventResult.handled;
   }
 
   Widget _buildModeBanner() {
@@ -481,7 +583,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           ),
         ],
       ),
-      body: Column(
+      body: Focus(
+        focusNode: _canvasFocus,
+        autofocus: true,
+        onKeyEvent: _onKeyEvent,
+        child: Column(
         children: <Widget>[
           Expanded(
             child: LayoutBuilder(
@@ -515,6 +621,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           if (_armedTool != null) _buildModeBanner(),
           const SizedBox(height: 8),
         ],
+        ),
       ),
     );
   }
@@ -841,10 +948,19 @@ class _GalleryPainter3D extends CustomPainter {
         );
         break;
       case StageElementType.ipscStandart:
-        _drawIpscStandart(canvas, rect, isSelected);
+        _drawIpscStandart(canvas, rect, isSelected, Colors.white);
+        break;
+      case StageElementType.nsIpsc:
+        _drawIpscStandart(canvas, rect, isSelected, const Color(0xFFD32F2F));
         break;
       case StageElementType.ipscMini:
-        _drawIpscMini(canvas, rect, isSelected);
+        _drawIpscMini(canvas, rect, isSelected, Colors.white);
+        break;
+      case StageElementType.nsIpscMini:
+        _drawIpscMini(canvas, rect, isSelected, const Color(0xFFD32F2F));
+        break;
+      case StageElementType.ipscHalfRight:
+        _drawIpscHalf(canvas, rect, isSelected, Colors.white);
         break;
       case StageElementType.hardCoverTarget:
       case StageElementType.hardCoverPartial:
@@ -1044,7 +1160,12 @@ class _GalleryPainter3D extends CustomPainter {
     return path;
   }
 
-  void _drawIpscStandart(Canvas canvas, Rect rect, bool isSelected) {
+  void _drawIpscStandart(
+    Canvas canvas,
+    Rect rect,
+    bool isSelected,
+    Color fill,
+  ) {
     final cardRect = Rect.fromLTWH(
       rect.left,
       rect.top,
@@ -1073,7 +1194,7 @@ class _GalleryPainter3D extends CustomPainter {
       legPaint,
     );
     final shape = _roundedOctagonPath(cardRect);
-    canvas.drawPath(shape, Paint()..color = Colors.white);
+    canvas.drawPath(shape, Paint()..color = fill);
     final inset = cardRect.width * 0.09;
     if (inset > 0.5) {
       canvas.drawPath(
@@ -1093,7 +1214,12 @@ class _GalleryPainter3D extends CustomPainter {
     );
   }
 
-  void _drawIpscMini(Canvas canvas, Rect rect, bool isSelected) {
+  void _drawIpscMini(
+    Canvas canvas,
+    Rect rect,
+    bool isSelected,
+    Color fill,
+  ) {
     final cardW = rect.width * 0.62;
     final cardRect = Rect.fromLTWH(
       rect.center.dx - cardW / 2,
@@ -1124,13 +1250,68 @@ class _GalleryPainter3D extends CustomPainter {
       legPaint,
     );
     final shape = _roundedOctagonPath(cardRect, corner: 0.10);
-    canvas.drawPath(shape, Paint()..color = Colors.white);
+    canvas.drawPath(shape, Paint()..color = fill);
     canvas.drawPath(
       shape,
       Paint()
         ..color = _cardOutline
         ..style = PaintingStyle.stroke
         ..strokeWidth = isSelected ? 2 : 1,
+    );
+  }
+
+  Path _ipscHalfPath(Rect r, bool right) {
+    final cx = r.width * 0.28;
+    final cy = r.height * 0.28;
+    final midX = r.center.dx;
+    final outerX = right ? r.right : r.left;
+    final edgeX = right ? r.right - cx : r.left + cx;
+    final v = <Offset>[
+      Offset(midX, r.top),
+      Offset(edgeX, r.top),
+      Offset(outerX, r.top + cy),
+      Offset(outerX, r.bottom - cy),
+      Offset(edgeX, r.bottom),
+      Offset(midX, r.bottom),
+    ];
+    const ks = <double>[0, 0.18, 0.18, 0.18, 0.18, 0];
+    final path = Path();
+    for (var i = 0; i < v.length; i++) {
+      final prev = v[(i - 1 + v.length) % v.length];
+      final cur = v[i];
+      final next = v[(i + 1) % v.length];
+      final p1 = Offset.lerp(cur, prev, ks[i])!;
+      final p2 = Offset.lerp(cur, next, ks[i])!;
+      if (i == 0) {
+        path.moveTo(p1.dx, p1.dy);
+      } else {
+        path.lineTo(p1.dx, p1.dy);
+      }
+      path.quadraticBezierTo(cur.dx, cur.dy, p2.dx, p2.dy);
+    }
+    path.close();
+    return path;
+  }
+
+  void _drawIpscHalf(Canvas canvas, Rect rect, bool isSelected, Color fill) {
+    final shape = _ipscHalfPath(rect, true);
+    canvas.drawPath(shape, Paint()..color = fill);
+    final inset = rect.width * 0.09;
+    if (inset > 0.5) {
+      canvas.drawPath(
+        _ipscHalfPath(rect.deflate(inset), true),
+        Paint()
+          ..color = _cardOutline
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = math.max(rect.width * 0.02, 0.8),
+      );
+    }
+    canvas.drawPath(
+      shape,
+      Paint()
+        ..color = _cardOutline
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isSelected ? 2.5 : 1.2,
     );
   }
 
