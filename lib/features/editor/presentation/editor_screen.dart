@@ -499,6 +499,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
                   },
                   onPanEnd: (DragEndDetails details) => _onPanEnd(),
                   child: CustomPaint(
+                    key: const ValueKey('galleryCanvas'),
                     size: size,
                     painter: _GalleryPainter3D(
                       elements: _stage.elements,
@@ -535,7 +536,7 @@ class _Perspective {
   double get horizonY => size.height * 0.14;
   double get floorNearY => size.height * 0.96;
   double get kv => (floorNearY - horizonY) * 2 / camHeight;
-  double get kx => size.width * 0.2;
+  double get kx => kv;
 
   double dOf(double y) => camDepth - y;
 
