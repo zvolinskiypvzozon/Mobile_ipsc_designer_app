@@ -8,14 +8,6 @@ import '../../../core/models/stage.dart';
 import '../../../core/models/stage_element.dart';
 import '../../stage_library/providers/stages_provider.dart';
 
-const double kPixelsPerMeter = 50;
-const Size kStageSizeMeters = Size(20, 50);
-const double kMinElementWidth = 0.05;
-const double kMaxElementWidth = 8;
-const double kMinElementHeight = 0.05;
-const double kMaxElementHeight = 3;
-const double kMaxRotationDegrees = 180;
-
 class EditorScreen extends ConsumerStatefulWidget {
   const EditorScreen({super.key});
 
@@ -25,18 +17,18 @@ class EditorScreen extends ConsumerStatefulWidget {
 
 class _EditorScreenState extends ConsumerState<EditorScreen> {
   static const _uuid = Uuid();
-  static final _random = math.Random();
 
   late Stage _stage;
   bool _stageInitialized = false;
   String? _selectedElementId;
   bool _saving = false;
-  bool _paletteVisible = false;
-  final TransformationController _transformation = TransformationController();
+  StageElementType? _armedTool;
+  bool _draggingElement = false;
+  (double, double)? _drawStart;
+  (double, double)? _drawCurrent;
 
   @override
   void dispose() {
-    _transformation.dispose();
     super.dispose();
   }
 
@@ -62,9 +54,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     return null;
   }
 
-  double get _currentScale =>
-      _transformation.value.getMaxScaleOnAxis().clamp(0.01, 100).toDouble();
-
   void _updateStage(Stage stage) {
     setState(() => _stage = stage);
   }
@@ -76,34 +65,19 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     ]));
   }
 
-  void _addElement(StageElementType type) {
+  void _placeElement(StageElementType type, double x, double y) {
     final size = type.defaultSize;
-    final jitter = Offset(
-      _random.nextDouble() * 2 - 1,
-      _random.nextDouble() * 2 - 1,
-    );
-    final position = Offset(
-      (kStageSizeMeters.width / 2 + jitter.dx)
-          .clamp(size.width / 2, kStageSizeMeters.width - size.width / 2)
-          .toDouble(),
-      (kStageSizeMeters.height / 2 + jitter.dy)
-          .clamp(size.height / 2, kStageSizeMeters.height - size.height / 2)
-          .toDouble(),
-    );
     final element = StageElement(
       id: _uuid.v4(),
       type: type,
-      position: position,
+      position: Offset(x, y),
       width: size.width,
       height: size.height,
     );
     _updateStage(_stage.copyWith(
       elements: <StageElement>[..._stage.elements, element],
     ));
-    setState(() {
-      _selectedElementId = element.id;
-      _paletteVisible = false;
-    });
+    setState(() => _selectedElementId = element.id);
   }
 
   void _deleteSelected() {
@@ -174,302 +148,269 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     }
   }
 
-  Widget _buildCanvasBackground() {
-    return Container(
-      width: kStageSizeMeters.width * kPixelsPerMeter,
-      height: kStageSizeMeters.height * kPixelsPerMeter,
-      decoration: BoxDecoration(
-        color: const Color(0xFF7A6A52),
-        border: Border.all(color: Colors.white24),
-      ),
-      child: CustomPaint(
-        painter: _GalleryPainter(spacing: kPixelsPerMeter),
-      ),
-    );
-  }
-
-  Widget _buildElementView(StageElement element) {
-    final width = element.width * kPixelsPerMeter;
-    final height = element.height * kPixelsPerMeter;
-    final borderRadius = BorderRadius.circular(4);
-
-    switch (element.type) {
+  IconData _toolIcon(StageElementType type) {
+    switch (type) {
       case StageElementType.paperTarget:
-      case StageElementType.noShoot:
-        final isNoShoot = element.type == StageElementType.noShoot;
-        return Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: borderRadius,
-            border: Border.all(
-              color: isNoShoot ? Colors.black : Colors.brown,
-              width: 2,
-            ),
-          ),
-          child: isNoShoot
-              ? Icon(Icons.close, size: width * 0.6, color: Colors.red)
-              : Center(
-                  child: Container(
-                    width: width * 0.3,
-                    height: width * 0.3,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.brown, width: 1.5),
-                    ),
-                  ),
-                ),
-        );
+        return Icons.adjust;
       case StageElementType.popper:
-        return Column(
-          mainAxisAlignment: MainAxisAlignment.end,
-          children: <Widget>[
-            Container(
-              width: width * 0.8,
-              height: height * 0.7,
-              decoration: BoxDecoration(
-                color: Colors.orange,
-                borderRadius: BorderRadius.only(
-                  topLeft: Radius.circular(width * 0.4),
-                  topRight: Radius.circular(width * 0.4),
-                ),
-              ),
-            ),
-            Container(
-              width: width,
-              height: height * 0.18,
-              decoration: BoxDecoration(
-                color: Colors.grey.shade600,
-                borderRadius: borderRadius,
-              ),
-            ),
-          ],
-        );
+        return Icons.trending_up;
       case StageElementType.plate:
-        return Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.grey.shade300,
-            border: Border.all(color: Colors.black54, width: 1.5),
-          ),
-        );
+        return Icons.circle_outlined;
+      case StageElementType.noShoot:
+        return Icons.dangerous_outlined;
       case StageElementType.wall:
-        return Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: Colors.grey.shade800,
-            borderRadius: borderRadius,
-            border: Border.all(color: Colors.black, width: 2),
-          ),
-        );
+        return Icons.foundation;
       case StageElementType.barrier:
-        return Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            color: Colors.orange.withValues(alpha: 0.35),
-            borderRadius: borderRadius,
-            border: Border.all(color: Colors.orange, width: 2),
-          ),
-        );
+        return Icons.fence;
       case StageElementType.faultLine:
-        return Container(
-          width: width,
-          height: math.max(height, 3),
-          decoration: BoxDecoration(
-            color: Colors.yellowAccent,
-            borderRadius: BorderRadius.circular(2),
-          ),
-        );
+        return Icons.timeline;
       case StageElementType.shootingPosition:
-        return Container(
-          width: width,
-          height: height,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Colors.blue.shade700,
-            border: Border.all(color: Colors.white, width: 2),
-          ),
-          child: Center(
-            child: Text(
-              'P',
-              style: TextStyle(
-                color: Colors.white,
-                fontSize: width * 0.5,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        );
+        return Icons.gps_fixed;
     }
   }
 
-  Widget _buildElement(StageElement element) {
-    const double hitAreaPaddingPx = 12;
-    final selected = element.id == _selectedElementId;
-    final bounds = element.bounds;
-    final boundsPx = Rect.fromCenter(
-      center: Offset(
-        bounds.center.dx * kPixelsPerMeter,
-        bounds.center.dy * kPixelsPerMeter,
-      ),
-      width: bounds.width * kPixelsPerMeter,
-      height: bounds.height * kPixelsPerMeter,
-    ).inflate(hitAreaPaddingPx);
-    return Positioned(
-      left: boundsPx.left,
-      top: boundsPx.top,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => setState(() => _selectedElementId = element.id),
-        onPanUpdate: (DragUpdateDetails details) {
-          final scale = _currentScale;
-          final delta = Offset(
-            details.delta.dx / (kPixelsPerMeter * scale),
-            details.delta.dy / (kPixelsPerMeter * scale),
-          );
-          _updateElement(element.copyWith(
-            position: Offset(
-              (element.position.dx + delta.dx)
-                  .clamp(
-                    element.width / 2,
-                    kStageSizeMeters.width - element.width / 2,
-                  )
-                  .toDouble(),
-              (element.position.dy + delta.dy)
-                  .clamp(
-                    element.height / 2,
-                    kStageSizeMeters.height - element.height / 2,
-                  )
-                  .toDouble(),
-            ),
-          ));
-        },
-        child: Transform.rotate(
-          angle: element.rotation * math.pi / 180,
-          alignment: Alignment.center,
-          child: Stack(
-            clipBehavior: Clip.none,
-            alignment: Alignment.center,
+  Future<void> _openToolsMenu() async {
+    final selected = await showModalBottomSheet<StageElementType>(
+      context: context,
+      builder: (BuildContext sheetContext) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
             children: <Widget>[
-              SizedBox(
-                width: boundsPx.width,
-                height: boundsPx.height,
-              ),
-              _buildElementView(element),
-              if (selected)
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  top: -20,
-                  child: Center(
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black87,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: Text(
-                        element.type.label,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPalette() {
-    return SizedBox(
-      height: 56,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
-        children: <Widget>[
-          for (final type in StageElementType.values)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: ActionChip(
-                label: Text(type.label),
-                onPressed: () => _addElement(type),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPropertiesPanel(StageElement element) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-      decoration: const BoxDecoration(
-        color: Colors.black26,
-        border: Border(top: BorderSide(color: Colors.white24)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Row(
-            children: <Widget>[
-              Expanded(
+              Padding(
+                padding: const EdgeInsets.all(16),
                 child: Text(
-                  element.type.label,
-                  style: Theme.of(context).textTheme.titleSmall,
+                  'Tools',
+                  style: Theme.of(sheetContext).textTheme.titleMedium,
                 ),
               ),
-              IconButton(
-                icon: const Icon(Icons.delete_outline),
-                tooltip: 'Delete element',
-                onPressed: _deleteSelected,
-              ),
+              for (final type in StageElementType.values)
+                ListTile(
+                  leading: Icon(_toolIcon(type)),
+                  title: Text(type.label),
+                  onTap: () => Navigator.of(sheetContext).pop(type),
+                ),
             ],
           ),
-          _LabeledSlider(
-            label: 'Rotation ${element.rotation.toStringAsFixed(0)}°',
-            value: element.rotation,
-            min: -kMaxRotationDegrees,
-            max: kMaxRotationDegrees,
-            onChanged: (value) => _updateElement(
-              element.copyWith(rotation: value),
+        );
+      },
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: Text('Place ${selected.label}'),
+          content: Text(
+            selected == StageElementType.faultLine
+                ? 'Draw the fault line by dragging on the gallery floor.'
+                : 'Tap the gallery floor to place it. '
+                    'The tool stays active until you finish it.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Place'),
+            ),
+          ],
+        );
+      },
+    );
+    if (confirmed == true && mounted) {
+      setState(() {
+        _armedTool = selected;
+        _selectedElementId = null;
+      });
+    }
+  }
+
+  String? _hitTestElement(_Perspective p, Offset point) {
+    final candidates = <StageElement>[..._stage.elements];
+    candidates.sort((a, b) => b.position.dy.compareTo(a.position.dy));
+    for (final element in candidates) {
+      final d = p.dOf(element.position.dy);
+      final base = p.floorPoint(element.position.dx, element.position.dy);
+      if (element.type == StageElementType.faultLine) {
+        final rot = element.rotation * math.pi / 180;
+        final dx = math.cos(rot) * element.width / 2;
+        final dy = math.sin(rot) * element.width / 2;
+        final a = p.floorPoint(
+          element.position.dx - dx,
+          element.position.dy - dy,
+        );
+        final b = p.floorPoint(
+          element.position.dx + dx,
+          element.position.dy + dy,
+        );
+        if (_distanceToSegment(point, a, b) < 10) {
+          return element.id;
+        }
+        continue;
+      }
+      if (element.type == StageElementType.plate ||
+          element.type == StageElementType.shootingPosition) {
+        final radius = math.max(p.widthPx(element.width / 2, d), 8.0);
+        if ((point - base).distance <= radius) {
+          return element.id;
+        }
+        continue;
+      }
+      final w = math.max(p.widthPx(element.width, d), 12.0);
+      final h = math.max(p.heightPx(element.height, d), 16.0);
+      final rect = Rect.fromLTWH(base.dx - w / 2, base.dy - h, w, h);
+      if (rect.contains(point)) {
+        return element.id;
+      }
+    }
+    return null;
+  }
+
+  double _distanceToSegment(Offset point, Offset a, Offset b) {
+    final ab = b - a;
+    final ap = point - a;
+    final lengthSquared = ab.distanceSquared;
+    if (lengthSquared == 0) {
+      return ap.distance;
+    }
+    final t =
+        ((ap.dx * ab.dx + ap.dy * ab.dy) / lengthSquared).clamp(0.0, 1.0);
+    return (point - a - ab * t).distance;
+  }
+
+  void _onTapUp(Offset local, Size size) {
+    final p = _Perspective(size);
+    if (_armedTool != null) {
+      if (_armedTool == StageElementType.faultLine) {
+        return;
+      }
+      final floor = p.floorFromScreen(local);
+      if (floor == null) {
+        return;
+      }
+      _placeElement(_armedTool!, floor.$1, floor.$2);
+      return;
+    }
+    setState(() => _selectedElementId = _hitTestElement(p, local));
+  }
+
+  void _onPanStart(Offset local, Size size) {
+    if (_armedTool == StageElementType.faultLine) {
+      final p = _Perspective(size);
+      _drawStart = p.floorFromScreen(local);
+      _drawCurrent = _drawStart;
+      setState(() {});
+      return;
+    }
+    final p = _Perspective(size);
+    final hit = _hitTestElement(p, local);
+    setState(() {
+      _selectedElementId = hit;
+      _draggingElement = hit != null;
+    });
+  }
+
+  void _onPanUpdate(Offset local, Size size) {
+    if (_armedTool == StageElementType.faultLine) {
+      if (_drawStart == null) {
+        return;
+      }
+      final p = _Perspective(size);
+      setState(() => _drawCurrent = p.floorFromScreen(local) ?? _drawCurrent);
+      return;
+    }
+    if (!_draggingElement) {
+      return;
+    }
+    final element = _selectedElement;
+    if (element == null) {
+      return;
+    }
+    final p = _Perspective(size);
+    final d = p.dOf(element.position.dy);
+    final baseY = p.floorPoint(element.position.dx, element.position.dy).dy;
+    final newBaseY = baseY + _lastDelta.dy;
+    final dy = newBaseY - p.horizonY;
+    double newY = element.position.dy;
+    if (dy > 1) {
+      final newD = p.kv * _Perspective.camHeight / dy;
+      newY = (_Perspective.camDepth - newD).clamp(0.0, _Perspective.nearY);
+    }
+    final newX = (element.position.dx + _lastDelta.dx * d / p.kx).clamp(
+      -_Perspective.stageHalfWidth,
+      _Perspective.stageHalfWidth,
+    );
+    _updateElement(element.copyWith(position: Offset(newX, newY)));
+  }
+
+  Offset _lastDelta = Offset.zero;
+
+  void _onPanUpdateWithDelta(Offset local, Offset delta, Size size) {
+    _lastDelta = delta;
+    _onPanUpdate(local, size);
+  }
+
+  void _onPanEnd() {
+    if (_armedTool == StageElementType.faultLine) {
+      final start = _drawStart;
+      final current = _drawCurrent;
+      if (start != null && current != null) {
+        final dx = current.$1 - start.$1;
+        final dy = current.$2 - start.$2;
+        final length = math.sqrt(dx * dx + dy * dy);
+        if (length >= 0.5) {
+          final element = StageElement(
+            id: _uuid.v4(),
+            type: StageElementType.faultLine,
+            position: Offset((start.$1 + current.$1) / 2,
+                (start.$2 + current.$2) / 2),
+            rotation: math.atan2(dy, dx) * 180 / math.pi,
+            width: length,
+            height: 0.05,
+          );
+          _updateStage(_stage.copyWith(
+            elements: <StageElement>[..._stage.elements, element],
+          ));
+        }
+      }
+      setState(() {
+        _drawStart = null;
+        _drawCurrent = null;
+      });
+      return;
+    }
+    setState(() => _draggingElement = false);
+  }
+
+  Widget _buildModeBanner() {
+    final tool = _armedTool!;
+    final hint = tool == StageElementType.faultLine
+        ? 'drag on the floor to draw the line'
+        : 'tap the floor to place';
+    return Container(
+      color: Colors.black26,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Row(
+        children: <Widget>[
+          Expanded(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 8),
+              child: Text('Placing: ${tool.label} — $hint'),
             ),
           ),
-          Row(
-            children: <Widget>[
-              Expanded(
-                child: _LabeledSlider(
-                  label: 'W ${element.width.toStringAsFixed(2)} m',
-                  value: element.width,
-                  min: kMinElementWidth,
-                  max: kMaxElementWidth,
-                  onChanged: (value) =>
-                      _updateElement(element.copyWith(width: value)),
-                ),
-              ),
-              Expanded(
-                child: _LabeledSlider(
-                  label: 'H ${element.height.toStringAsFixed(2)} m',
-                  value: element.height,
-                  min: kMinElementHeight,
-                  max: kMaxElementHeight,
-                  onChanged: (value) =>
-                      _updateElement(element.copyWith(height: value)),
-                ),
-              ),
-            ],
+          IconButton(
+            icon: const Icon(Icons.close),
+            tooltip: 'Finish placing',
+            onPressed: () => setState(() {
+              _armedTool = null;
+              _drawStart = null;
+              _drawCurrent = null;
+            }),
           ),
         ],
       ),
@@ -488,13 +429,16 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         ),
         actions: <Widget>[
           IconButton(
-            icon: Icon(_paletteVisible
-                ? Icons.close
-                : Icons.construction),
+            icon: const Icon(Icons.construction),
             tooltip: 'Tools',
-            onPressed: () =>
-                setState(() => _paletteVisible = !_paletteVisible),
+            onPressed: _openToolsMenu,
           ),
+          if (selected != null)
+            IconButton(
+              icon: const Icon(Icons.delete_outline),
+              tooltip: 'Delete element',
+              onPressed: _deleteSelected,
+            ),
           IconButton(
             icon: const Icon(Icons.edit_outlined),
             tooltip: 'Rename',
@@ -516,28 +460,36 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       body: Column(
         children: <Widget>[
           Expanded(
-            child: GestureDetector(
-              onTap: () => setState(() => _selectedElementId = null),
-              child: InteractiveViewer(
-                transformationController: _transformation,
-                boundaryMargin: const EdgeInsets.all(2000),
-                maxScale: 4,
-                minScale: 0.2,
-                child: Center(
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: <Widget>[
-                      _buildCanvasBackground(),
-                      for (final element in _stage.elements)
-                        _buildElement(element),
-                    ],
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final size = constraints.biggest;
+                return GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTapUp: (TapUpDetails details) =>
+                      _onTapUp(details.localPosition, size),
+                  onPanStart: (DragStartDetails details) =>
+                      _onPanStart(details.localPosition, size),
+                  onPanUpdate: (DragUpdateDetails details) =>
+                      _onPanUpdateWithDelta(
+                    details.localPosition,
+                    details.delta,
+                    size,
                   ),
-                ),
-              ),
+                  onPanEnd: (DragEndDetails details) => _onPanEnd(),
+                  child: CustomPaint(
+                    size: size,
+                    painter: _GalleryPainter3D(
+                      elements: _stage.elements,
+                      selectedId: _selectedElementId,
+                      previewStart: _drawStart,
+                      previewEnd: _drawCurrent,
+                    ),
+                  ),
+                );
+              },
             ),
           ),
-          if (_paletteVisible) _buildPalette(),
-          if (selected != null) _buildPropertiesPanel(selected),
+          if (_armedTool != null) _buildModeBanner(),
           const SizedBox(height: 8),
         ],
       ),
@@ -545,79 +497,372 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 }
 
-class _LabeledSlider extends StatelessWidget {
-  const _LabeledSlider({
-    required this.label,
-    required this.value,
-    required this.min,
-    required this.max,
-    required this.onChanged,
-  });
+class _Perspective {
+  _Perspective(this.size);
 
-  final String label;
-  final double value;
-  final double min;
-  final double max;
-  final ValueChanged<double> onChanged;
+  final Size size;
 
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Text(label, style: Theme.of(context).textTheme.labelSmall),
-        Slider(
-          value: value.clamp(min, max).toDouble(),
-          min: min,
-          max: max,
-          onChanged: onChanged,
-        ),
-      ],
-    );
+  static const double camHeight = 1.7;
+  static const double camDepth = 52;
+  static const double stageHalfWidth = 10;
+  static const double corridorHalfWidth = 8.5;
+  static const double farY = 5;
+  static const double nearY = 50;
+  static const double bermHeight = 2.5;
+
+  double get horizonY => size.height * 0.14;
+  double get floorNearY => size.height * 0.96;
+  double get kv => (floorNearY - horizonY) * 2 / camHeight;
+  double get kx => size.width * 0.2;
+
+  double dOf(double y) => camDepth - y;
+
+  double screenYFromD(double d) => horizonY + kv * camHeight / d;
+
+  Offset floorPoint(double x, double y) {
+    final d = dOf(y);
+    return Offset(size.width / 2 + kx * x / d, screenYFromD(d));
   }
+
+  (double, double)? floorFromScreen(Offset point) {
+    final dy = point.dy - horizonY;
+    if (dy <= 1) {
+      return null;
+    }
+    final d = kv * camHeight / dy;
+    final y = camDepth - d;
+    if (y < 0 || y > nearY) {
+      return null;
+    }
+    final x = (point.dx - size.width / 2) * d / kx;
+    if (x < -stageHalfWidth || x > stageHalfWidth) {
+      return null;
+    }
+    return (x, y);
+  }
+
+  double heightPx(double meters, double d) => kv * meters / d;
+
+  double widthPx(double meters, double d) => kx * meters / d;
 }
 
-class _GalleryPainter extends CustomPainter {
-  const _GalleryPainter({required this.spacing});
+class _GalleryPainter3D extends CustomPainter {
+  _GalleryPainter3D({
+    required this.elements,
+    required this.selectedId,
+    this.previewStart,
+    this.previewEnd,
+  });
 
-  final double spacing;
+  final List<StageElement> elements;
+  final String? selectedId;
+  final (double, double)? previewStart;
+  final (double, double)? previewEnd;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final berm = Paint()..color = const Color(0xFF7A6A52);
-    final gravel = Paint()..color = const Color(0xFFA5A19A);
-    final edge = Paint()
-      ..color = const Color(0xFF5A4C39)
-      ..strokeWidth = 3
-      ..style = PaintingStyle.stroke;
-    final line = Paint()
+    final p = _Perspective(size);
+
+    canvas.drawRect(Offset.zero & size, Paint()..color = const Color(0xFF7A6A52));
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, p.horizonY),
+      Paint()..color = const Color(0xFF5F5140),
+    );
+
+    final farFace = Paint()..color = const Color(0xFF655641);
+    final dFar = p.dOf(_Perspective.farY);
+    final farFloorL = p.floorPoint(-_Perspective.stageHalfWidth, _Perspective.farY);
+    final farFloorR = p.floorPoint(_Perspective.stageHalfWidth, _Perspective.farY);
+    final farTopL = Offset(
+      farFloorL.dx,
+      farFloorL.dy - p.heightPx(_Perspective.bermHeight, dFar),
+    );
+    final farTopR = Offset(
+      farFloorR.dx,
+      farFloorR.dy - p.heightPx(_Perspective.bermHeight, dFar),
+    );
+    final farPath = Path()
+      ..moveTo(farFloorL.dx, farFloorL.dy)
+      ..lineTo(farFloorR.dx, farFloorR.dy)
+      ..lineTo(farTopR.dx, farTopR.dy)
+      ..lineTo(farTopL.dx, farTopL.dy)
+      ..close();
+    canvas.drawPath(farPath, farFace);
+
+    final sideWall = Paint()..color = const Color(0xFF6E5E48);
+    for (final side in <double>[-_Perspective.stageHalfWidth, _Perspective.stageHalfWidth]) {
+      final dNear = p.dOf(_Perspective.nearY);
+      final nearFloor = p.floorPoint(side, _Perspective.nearY);
+      final farFloor = p.floorPoint(side, _Perspective.farY);
+      final nearTop = Offset(
+        nearFloor.dx,
+        nearFloor.dy - p.heightPx(_Perspective.bermHeight, dNear),
+      );
+      final farTop = Offset(
+        farFloor.dx,
+        farFloor.dy - p.heightPx(_Perspective.bermHeight, dFar),
+      );
+      final wallPath = Path()
+        ..moveTo(nearFloor.dx, nearFloor.dy)
+        ..lineTo(farFloor.dx, farFloor.dy)
+        ..lineTo(farTop.dx, farTop.dy)
+        ..lineTo(nearTop.dx, nearTop.dy)
+        ..close();
+      canvas.drawPath(wallPath, sideWall);
+    }
+
+    final strip = Paint()..color = const Color(0xFF847458);
+    for (final pair in <List<double>>[
+      [-_Perspective.stageHalfWidth, -_Perspective.corridorHalfWidth],
+      [_Perspective.corridorHalfWidth, _Perspective.stageHalfWidth],
+    ]) {
+      final path = Path()
+        ..moveTo(
+          p.floorPoint(pair[0], _Perspective.nearY).dx,
+          p.floorPoint(pair[0], _Perspective.nearY).dy,
+        )
+        ..lineTo(
+          p.floorPoint(pair[1], _Perspective.nearY).dx,
+          p.floorPoint(pair[1], _Perspective.nearY).dy,
+        )
+        ..lineTo(
+          p.floorPoint(pair[1], _Perspective.farY).dx,
+          p.floorPoint(pair[1], _Perspective.farY).dy,
+        )
+        ..lineTo(
+          p.floorPoint(pair[0], _Perspective.farY).dx,
+          p.floorPoint(pair[0], _Perspective.farY).dy,
+        )
+        ..close();
+      canvas.drawPath(path, strip);
+    }
+
+    final floorPath = Path()
+      ..moveTo(
+        p.floorPoint(-_Perspective.corridorHalfWidth, _Perspective.nearY).dx,
+        p.floorPoint(-_Perspective.corridorHalfWidth, _Perspective.nearY).dy,
+      )
+      ..lineTo(
+        p.floorPoint(_Perspective.corridorHalfWidth, _Perspective.nearY).dx,
+        p.floorPoint(_Perspective.corridorHalfWidth, _Perspective.nearY).dy,
+      )
+      ..lineTo(
+        p.floorPoint(_Perspective.corridorHalfWidth, _Perspective.farY).dx,
+        p.floorPoint(_Perspective.corridorHalfWidth, _Perspective.farY).dy,
+      )
+      ..lineTo(
+        p.floorPoint(-_Perspective.corridorHalfWidth, _Perspective.farY).dx,
+        p.floorPoint(-_Perspective.corridorHalfWidth, _Perspective.farY).dy,
+      )
+      ..close();
+    canvas.drawPath(floorPath, Paint()..color = const Color(0xFFA5A19A));
+
+    final depthLine = Paint()
       ..color = Colors.white24
       ..strokeWidth = 1;
-
-    canvas.drawRect(Offset.zero & size, berm);
-
-    final double left = 1.5 * spacing;
-    final double right = size.width - 1.5 * spacing;
-    final double top = 5 * spacing;
-    final double radius = (right - left) / 2;
-    final corridor = RRect.fromRectAndCorners(
-      Rect.fromLTRB(left, top, right, size.height),
-      topLeft: Radius.circular(radius),
-      topRight: Radius.circular(radius),
-    );
-    canvas.drawRRect(corridor, gravel);
-    canvas.drawRRect(corridor, edge);
-
-    for (double y = 5 * spacing; y <= size.height; y += 5 * spacing) {
-      canvas.drawLine(Offset(left, y), Offset(right, y), line);
+    for (double y = _Perspective.farY;
+        y <= _Perspective.nearY;
+        y += 5) {
+      final left = p.floorPoint(-_Perspective.corridorHalfWidth, y);
+      final right = p.floorPoint(_Perspective.corridorHalfWidth, y);
+      canvas.drawLine(left, right, depthLine);
     }
-    for (double x = 5 * spacing; x < size.width; x += 5 * spacing) {
-      canvas.drawLine(Offset(x, 0), Offset(x, size.height), line);
+
+    final sorted = [...elements]..sort(
+        (a, b) => a.position.dy.compareTo(b.position.dy),
+      );
+    for (final element in sorted) {
+      _drawElement(canvas, p, element);
+    }
+
+    final start = previewStart;
+    final end = previewEnd;
+    if (start != null && end != null) {
+      final a = p.floorPoint(start.$1, start.$2);
+      final b = p.floorPoint(end.$1, end.$2);
+      canvas.drawLine(
+        a,
+        b,
+        Paint()
+          ..color = Colors.yellowAccent
+          ..strokeWidth = 3,
+      );
+      canvas.drawCircle(a, 4, Paint()..color = Colors.yellowAccent);
+      canvas.drawCircle(b, 4, Paint()..color = Colors.yellowAccent);
     }
   }
 
+  void _drawElement(Canvas canvas, _Perspective p, StageElement element) {
+    final isSelected = element.id == selectedId;
+    final d = p.dOf(element.position.dy);
+    final base = p.floorPoint(element.position.dx, element.position.dy);
+
+    if (element.type == StageElementType.faultLine) {
+      final rot = element.rotation * math.pi / 180;
+      final dx = math.cos(rot) * element.width / 2;
+      final dy = math.sin(rot) * element.width / 2;
+      final a = p.floorPoint(element.position.dx - dx, element.position.dy - dy);
+      final b = p.floorPoint(element.position.dx + dx, element.position.dy + dy);
+      canvas.drawLine(
+        a,
+        b,
+        Paint()
+          ..color = isSelected ? Colors.orange : Colors.yellowAccent
+          ..strokeWidth = isSelected ? 4 : 2.5,
+      );
+      if (isSelected) {
+        _drawLabel(canvas, p, element.type.label, Offset((a.dx + b.dx) / 2, (a.dy + b.dy) / 2));
+      }
+      return;
+    }
+
+    if (element.type == StageElementType.plate ||
+        element.type == StageElementType.shootingPosition) {
+      final radius = math.max(p.widthPx(element.width / 2, d), 3.0);
+      final fill = Paint()
+        ..color = element.type == StageElementType.plate
+            ? Colors.grey.shade300
+            : Colors.blue.shade700;
+      canvas.drawCircle(base, radius, fill);
+      canvas.drawCircle(
+        base,
+        radius,
+        Paint()
+          ..color = element.type == StageElementType.plate
+              ? Colors.black54
+              : Colors.white
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = isSelected ? 3 : 1.5,
+      );
+      if (element.type == StageElementType.shootingPosition) {
+        final tp = TextPainter(
+          text: TextSpan(
+            text: 'P',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: math.max(radius * 1.1, 8),
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+        )..layout();
+        tp.paint(canvas, base - Offset(tp.width / 2, tp.height / 2));
+      }
+      if (isSelected) {
+        _drawLabel(canvas, p, element.type.label, Offset(base.dx, base.dy - radius - 14));
+      }
+      return;
+    }
+
+    final w = p.widthPx(element.width, d);
+    final h = p.heightPx(element.height, d);
+    final rect = Rect.fromLTWH(base.dx - w / 2, base.dy - h, w, h);
+
+    switch (element.type) {
+      case StageElementType.paperTarget:
+      case StageElementType.noShoot:
+        final isNoShoot = element.type == StageElementType.noShoot;
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, Radius.circular(w * 0.1)),
+          Paint()..color = Colors.white,
+        );
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(rect, Radius.circular(w * 0.1)),
+          Paint()
+            ..color = isNoShoot ? Colors.black : Colors.brown
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = isSelected ? 3 : 1.5,
+        );
+        if (isNoShoot) {
+          final cross = Paint()
+            ..color = Colors.red
+            ..strokeWidth = math.max(w * 0.08, 1.5);
+          canvas.drawLine(rect.topLeft + Offset(w * 0.2, h * 0.2),
+              rect.bottomRight - Offset(w * 0.2, h * 0.2), cross);
+          canvas.drawLine(rect.bottomLeft + Offset(w * 0.2, -h * 0.2),
+              rect.topRight - Offset(w * 0.2, -h * 0.2), cross);
+        } else {
+          canvas.drawCircle(
+            rect.center,
+            math.max(w * 0.15, 1.5),
+            Paint()..color = Colors.brown,
+          );
+        }
+        break;
+      case StageElementType.popper:
+        final head = Rect.fromLTWH(rect.left, rect.top, rect.width, h * 0.8);
+        canvas.drawRRect(
+          RRect.fromRectAndCorners(
+            head,
+            topLeft: Radius.circular(w * 0.45),
+            topRight: Radius.circular(w * 0.45),
+          ),
+          Paint()..color = Colors.orange,
+        );
+        canvas.drawRect(
+          Rect.fromLTWH(rect.left, rect.top + h * 0.82, rect.width, h * 0.18),
+          Paint()..color = Colors.grey.shade600,
+        );
+        break;
+      case StageElementType.wall:
+        canvas.drawRect(rect, Paint()..color = const Color(0xFF4A4A4A));
+        canvas.drawRect(
+          rect,
+          Paint()
+            ..color = Colors.black
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = isSelected ? 3 : 1.5,
+        );
+        break;
+      case StageElementType.barrier:
+        canvas.drawRect(
+          rect,
+          Paint()..color = Colors.orange.withValues(alpha: 0.45),
+        );
+        canvas.drawRect(
+          rect,
+          Paint()
+            ..color = Colors.orange
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = isSelected ? 3 : 1.5,
+        );
+        break;
+      case StageElementType.faultLine:
+      case StageElementType.plate:
+      case StageElementType.shootingPosition:
+        break;
+    }
+    if (isSelected) {
+      canvas.drawRect(
+        rect.inflate(2),
+        Paint()
+          ..color = Colors.yellow
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2,
+      );
+      _drawLabel(canvas, p, element.type.label, Offset(rect.center.dx, rect.top - 14));
+    }
+  }
+
+  void _drawLabel(Canvas canvas, _Perspective p, String text, Offset at) {
+    final tp = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          backgroundColor: Colors.black87,
+        ),
+      ),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, at - Offset(tp.width / 2, tp.height));
+  }
+
   @override
-  bool shouldRepaint(covariant _GalleryPainter oldDelegate) =>
-      oldDelegate.spacing != spacing;
+  bool shouldRepaint(covariant _GalleryPainter3D oldDelegate) =>
+      oldDelegate.elements != elements ||
+      oldDelegate.selectedId != selectedId ||
+      oldDelegate.previewStart != previewStart ||
+      oldDelegate.previewEnd != previewEnd;
 }

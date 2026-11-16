@@ -13,7 +13,7 @@ void main() {
     expect(find.text('No stages yet. Tap + to create one.'), findsOneWidget);
   });
 
-  testWidgets('Editor opens gallery, tools hide after selection',
+  testWidgets('Editor: tools menu, confirmation and placement mode',
       (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: IpscDesignerApp()));
     await tester.pumpAndSettle();
@@ -27,11 +27,18 @@ void main() {
     await tester.tap(find.byIcon(Icons.construction));
     await tester.pumpAndSettle();
 
-    expect(find.text('Paper target'), findsOneWidget);
-
     await tester.tap(find.text('Paper target'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Paper target'), findsNWidgets(2));
+    await tester.tap(find.text('Place'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Paper target'), findsNothing);
+    expect(find.byIcon(Icons.close), findsOneWidget);
+
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+
+    expect(find.byIcon(Icons.close), findsNothing);
   });
 }
