@@ -841,34 +841,48 @@ class _GalleryPainter3D extends CustomPainter {
         break;
       case StageElementType.paperTarget:
       case StageElementType.ipscMiniTarget:
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(rect, Radius.circular(w * 0.1)),
-          Paint()..color = Colors.white,
-        );
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(rect, Radius.circular(w * 0.1)),
-          Paint()
-            ..color = Colors.brown
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = isSelected ? 3 : 1.5,
-        );
-        canvas.drawCircle(
-          rect.center,
-          math.max(w * 0.15, 1.5),
-          Paint()..color = Colors.brown,
+      case StageElementType.partialTarget:
+      case StageElementType.hardCoverTarget:
+      case StageElementType.hardCoverPartial:
+        _drawIpscTarget(
+          canvas,
+          rect,
+          isSelected,
+          fill: Colors.white,
+          cover: spec == StageElementType.hardCoverTarget ||
+              spec == StageElementType.hardCoverPartial,
         );
         break;
       case StageElementType.classicTarget:
       case StageElementType.classicMiniTarget:
-      case StageElementType.partialTarget:
         canvas.drawRect(rect, Paint()..color = spec.color);
+        _drawTargetZones(canvas, rect);
         canvas.drawRect(rect, border);
         break;
       case StageElementType.noShoot:
       case StageElementType.noShootClassic:
       case StageElementType.noShootMini:
-        canvas.drawRect(rect, Paint()..color = spec.color);
-        canvas.drawRect(rect, border);
+        final isClassic = spec == StageElementType.noShootClassic;
+        final shape = isClassic ? null : _ipscPath(rect);
+        if (shape == null) {
+          canvas.drawRect(rect, Paint()..color = Colors.white);
+          canvas.drawRect(
+            rect,
+            Paint()
+              ..color = Colors.black
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = isSelected ? 3 : 2,
+          );
+        } else {
+          canvas.drawPath(shape, Paint()..color = Colors.white);
+          canvas.drawPath(
+            shape,
+            Paint()
+              ..color = Colors.black
+              ..style = PaintingStyle.stroke
+              ..strokeWidth = isSelected ? 3 : 2,
+          );
+        }
         final cross = Paint()
           ..color = Colors.red
           ..strokeWidth = math.max(w * 0.08, 1.5);
@@ -883,15 +897,6 @@ class _GalleryPainter3D extends CustomPainter {
           cross,
         );
         break;
-      case StageElementType.hardCoverTarget:
-      case StageElementType.hardCoverPartial:
-        canvas.drawRect(rect, Paint()..color = Colors.white);
-        canvas.drawRect(
-          Rect.fromLTWH(rect.left, rect.top, rect.width, h * 0.45),
-          Paint()..color = Colors.black87,
-        );
-        canvas.drawRect(rect, border);
-        break;
       case StageElementType.moverTarget:
       case StageElementType.swingingTarget:
       case StageElementType.dropTurner:
@@ -900,8 +905,14 @@ class _GalleryPainter3D extends CustomPainter {
           Rect.fromLTWH(rect.left - w * 0.1, rect.top - h * 0.15, w * 1.2, h * 0.08),
           Paint()..color = Colors.grey.shade700,
         );
-        canvas.drawRect(rect, Paint()..color = Colors.white);
-        canvas.drawRect(rect, border);
+        _drawIpscTarget(
+          canvas,
+          rect,
+          isSelected,
+          fill: spec == StageElementType.knockDownTarget
+              ? const Color(0xFFCFD8DC)
+              : Colors.white,
+        );
         break;
       case StageElementType.visionBarrier:
       case StageElementType.visionBarrierNarrow:
@@ -1000,8 +1011,8 @@ class _GalleryPainter3D extends CustomPainter {
         );
         break;
       case StageElementType.redOutline:
-        canvas.drawRect(
-          rect,
+        canvas.drawPath(
+          _ipscPath(rect),
           Paint()
             ..color = spec.color
             ..style = PaintingStyle.stroke
@@ -1043,6 +1054,81 @@ class _GalleryPainter3D extends CustomPainter {
           ..strokeWidth = 2,
       );
       _drawLabel(canvas, spec.label, Offset(rect.center.dx, rect.top - 14));
+    }
+  }
+
+  Path _ipscPath(Rect rect) {
+    final cutY = rect.top + rect.height * 0.72;
+    final topInset = rect.width * 0.28;
+    return Path()
+      ..moveTo(rect.left, rect.bottom)
+      ..lineTo(rect.right, rect.bottom)
+      ..lineTo(rect.right, cutY)
+      ..lineTo(rect.right - topInset, rect.top)
+      ..lineTo(rect.left + topInset, rect.top)
+      ..lineTo(rect.left, cutY)
+      ..close();
+  }
+
+  void _drawIpscTarget(
+    Canvas canvas,
+    Rect rect,
+    bool isSelected, {
+    required Color fill,
+    bool cover = false,
+  }) {
+    final path = _ipscPath(rect);
+    canvas.drawPath(path, Paint()..color = fill);
+    if (cover) {
+      canvas.save();
+      canvas.clipPath(path);
+      canvas.drawRect(
+        Rect.fromLTWH(rect.left, rect.top, rect.width, rect.height * 0.35),
+        Paint()..color = Colors.black87,
+      );
+      canvas.restore();
+    }
+    _drawTargetZones(canvas, rect);
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = Colors.brown
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isSelected ? 3 : 1.5,
+    );
+  }
+
+  void _drawTargetZones(Canvas canvas, Rect rect) {
+    final zone = Paint()
+      ..color = Colors.black45
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final aZone = Rect.fromCenter(
+      center: Offset(rect.center.dx, rect.top + rect.height * 0.55),
+      width: rect.width * 0.24,
+      height: rect.height * 0.16,
+    );
+    canvas.drawRect(aZone, zone);
+    canvas.drawLine(
+      Offset(rect.left + 1, rect.top + rect.height * 0.72),
+      Offset(rect.right - 1, rect.top + rect.height * 0.72),
+      zone,
+    );
+    if (rect.width > 26) {
+      final letter = TextPainter(
+        text: const TextSpan(
+          text: 'A',
+          style: TextStyle(color: Colors.black54, fontSize: 9),
+        ),
+        textDirection: TextDirection.ltr,
+      )..layout();
+      letter.paint(
+        canvas,
+        Offset(
+          aZone.center.dx - letter.width / 2,
+          aZone.center.dy - letter.height / 2,
+        ),
+      );
     }
   }
 
