@@ -959,8 +959,8 @@ class _GalleryPainter3D extends CustomPainter {
       case StageElementType.nsIpscMini:
         _drawIpscMini(canvas, rect, isSelected, const Color(0xFFD32F2F));
         break;
-      case StageElementType.ipscHalfRight:
-        _drawIpscHalf(canvas, rect, isSelected, Colors.white);
+      case StageElementType.ipscMikro:
+        _drawIpscMini(canvas, rect, isSelected, Colors.white);
         break;
       case StageElementType.hardCoverTarget:
       case StageElementType.hardCoverPartial:
@@ -1257,61 +1257,6 @@ class _GalleryPainter3D extends CustomPainter {
         ..color = _cardOutline
         ..style = PaintingStyle.stroke
         ..strokeWidth = isSelected ? 2 : 1,
-    );
-  }
-
-  Path _ipscHalfPath(Rect r, bool right) {
-    final cx = r.width * 0.28;
-    final cy = r.height * 0.28;
-    final midX = r.center.dx;
-    final outerX = right ? r.right : r.left;
-    final edgeX = right ? r.right - cx : r.left + cx;
-    final v = <Offset>[
-      Offset(midX, r.top),
-      Offset(edgeX, r.top),
-      Offset(outerX, r.top + cy),
-      Offset(outerX, r.bottom - cy),
-      Offset(edgeX, r.bottom),
-      Offset(midX, r.bottom),
-    ];
-    const ks = <double>[0, 0.18, 0.18, 0.18, 0.18, 0];
-    final path = Path();
-    for (var i = 0; i < v.length; i++) {
-      final prev = v[(i - 1 + v.length) % v.length];
-      final cur = v[i];
-      final next = v[(i + 1) % v.length];
-      final p1 = Offset.lerp(cur, prev, ks[i])!;
-      final p2 = Offset.lerp(cur, next, ks[i])!;
-      if (i == 0) {
-        path.moveTo(p1.dx, p1.dy);
-      } else {
-        path.lineTo(p1.dx, p1.dy);
-      }
-      path.quadraticBezierTo(cur.dx, cur.dy, p2.dx, p2.dy);
-    }
-    path.close();
-    return path;
-  }
-
-  void _drawIpscHalf(Canvas canvas, Rect rect, bool isSelected, Color fill) {
-    final shape = _ipscHalfPath(rect, true);
-    canvas.drawPath(shape, Paint()..color = fill);
-    final inset = rect.width * 0.09;
-    if (inset > 0.5) {
-      canvas.drawPath(
-        _ipscHalfPath(rect.deflate(inset), true),
-        Paint()
-          ..color = _cardOutline
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = math.max(rect.width * 0.02, 0.8),
-      );
-    }
-    canvas.drawPath(
-      shape,
-      Paint()
-        ..color = _cardOutline
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = isSelected ? 2.5 : 1.2,
     );
   }
 
