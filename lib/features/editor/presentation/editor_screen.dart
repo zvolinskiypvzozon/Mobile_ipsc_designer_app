@@ -907,20 +907,16 @@ class _GalleryPainter3D extends CustomPainter {
         canvas.drawPath(path, border);
         break;
       case StageElementType.popper:
+        _drawPopper(canvas, rect, isSelected, Colors.white);
+        break;
       case StageElementType.miniPopper:
-        final head = Rect.fromLTWH(rect.left, rect.top, rect.width, h * 0.8);
-        canvas.drawRRect(
-          RRect.fromRectAndCorners(
-            head,
-            topLeft: Radius.circular(w * 0.45),
-            topRight: Radius.circular(w * 0.45),
-          ),
-          Paint()..color = spec.color,
-        );
-        canvas.drawRect(
-          Rect.fromLTWH(rect.left, rect.top + h * 0.82, rect.width, h * 0.18),
-          Paint()..color = Colors.grey.shade600,
-        );
+        _drawPopper(canvas, rect, isSelected, Colors.white);
+        break;
+      case StageElementType.popperNs:
+        _drawPopper(canvas, rect, isSelected, const Color(0xFFD32F2F));
+        break;
+      case StageElementType.popperNsMini:
+        _drawPopper(canvas, rect, isSelected, const Color(0xFFD32F2F));
         break;
       case StageElementType.barrel:
       case StageElementType.barrelDouble:
@@ -967,7 +963,6 @@ class _GalleryPainter3D extends CustomPainter {
       case StageElementType.moverTarget:
       case StageElementType.swingingTarget:
       case StageElementType.dropTurner:
-      case StageElementType.knockDownTarget:
         _drawPaperCard(canvas, element, rect, isSelected);
         break;
       case StageElementType.visionBarrier:
@@ -1017,9 +1012,19 @@ class _GalleryPainter3D extends CustomPainter {
             ..strokeWidth = math.max(w * 0.12, 2),
         );
         break;
-      case StageElementType.plateRack:
+      case StageElementType.roundPlate:
+        _drawRoundPlate(canvas, rect, isSelected, Colors.white);
+        break;
+      case StageElementType.roundPlateNs:
+        _drawRoundPlate(canvas, rect, isSelected, const Color(0xFFD32F2F));
+        break;
+      case StageElementType.squarePlate:
+        _drawSquarePlate(canvas, rect, isSelected, Colors.white);
+        break;
+      case StageElementType.squarePlateNs:
+        _drawSquarePlate(canvas, rect, isSelected, const Color(0xFFD32F2F));
+        break;
       case StageElementType.texasStar:
-      case StageElementType.spinner:
         canvas.drawRect(rect, Paint()..color = spec.color);
         canvas.drawRect(rect, border);
         final platePaint = Paint()..color = Colors.grey.shade300;
@@ -1077,7 +1082,6 @@ class _GalleryPainter3D extends CustomPainter {
         break;
       case StageElementType.wall:
       case StageElementType.barrier:
-      case StageElementType.bowlingPin:
       case StageElementType.table:
       case StageElementType.sawhorse:
       case StageElementType.bench:
@@ -1092,8 +1096,6 @@ class _GalleryPainter3D extends CustomPainter {
       case StageElementType.stopTape:
       case StageElementType.dashedLine:
       case StageElementType.moverRail:
-      case StageElementType.plate:
-      case StageElementType.plateLarge:
       case StageElementType.spMarker:
       case StageElementType.xxMarker:
       case StageElementType.activatorPad:
@@ -1260,6 +1262,102 @@ class _GalleryPainter3D extends CustomPainter {
     );
   }
 
+  void _drawPopper(
+    Canvas canvas,
+    Rect rect,
+    bool isSelected,
+    Color fill,
+  ) {
+    final cx = rect.center.dx;
+    final headR = rect.width * 0.30;
+    final headC = Offset(cx, rect.top + headR);
+    final neckW = rect.width * 0.42;
+    final baseH = rect.height * 0.10;
+    final bodyTop = headC.dy + headR * 0.5;
+    final body = Rect.fromLTWH(
+      cx - neckW / 2,
+      bodyTop,
+      neckW,
+      rect.bottom - baseH - bodyTop,
+    );
+    final baseW = rect.width * 0.55;
+    final base = Rect.fromLTWH(
+      cx - baseW / 2,
+      rect.bottom - baseH,
+      baseW,
+      baseH,
+    );
+    final head = Path()
+      ..addOval(Rect.fromCircle(center: headC, radius: headR));
+    final shape = Path.combine(
+      PathOperation.union,
+      head,
+      Path.combine(
+        PathOperation.union,
+        Path()..addRect(body),
+        Path()..addRect(base),
+      ),
+    );
+    canvas.drawPath(shape, Paint()..color = fill);
+    canvas.drawPath(
+      shape,
+      Paint()
+        ..color = _cardOutline
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isSelected ? 2.5 : 1.2,
+    );
+  }
+
+  void _drawRoundPlate(
+    Canvas canvas,
+    Rect rect,
+    bool isSelected,
+    Color fill,
+  ) {
+    final r = rect.width / 2;
+    final center = Offset(rect.center.dx, rect.top + r);
+    final baseH = rect.height * 0.16;
+    final baseW = rect.width * 0.55;
+    final base = Rect.fromLTWH(
+      rect.center.dx - baseW / 2,
+      rect.bottom - baseH,
+      baseW,
+      baseH,
+    );
+    canvas.drawRect(base, Paint()..color = _cardOutline);
+    canvas.drawCircle(center, r, Paint()..color = fill);
+    canvas.drawCircle(
+      center,
+      r,
+      Paint()
+        ..color = _cardOutline
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isSelected ? 3 : math.max(rect.width * 0.08, 1.2),
+    );
+  }
+
+  void _drawSquarePlate(Canvas canvas, Rect rect, bool isSelected, Color fill) {
+    final side = rect.width;
+    final plate = Rect.fromLTWH(rect.left, rect.top, side, side);
+    final baseH = rect.height * 0.16;
+    final baseW = rect.width * 0.55;
+    final base = Rect.fromLTWH(
+      rect.center.dx - baseW / 2,
+      rect.bottom - baseH,
+      baseW,
+      baseH,
+    );
+    canvas.drawRect(base, Paint()..color = _cardOutline);
+    canvas.drawRect(plate, Paint()..color = fill);
+    canvas.drawRect(
+      plate,
+      Paint()
+        ..color = _cardOutline
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isSelected ? 3 : math.max(rect.width * 0.10, 1.5),
+    );
+  }
+
   void _drawPaperCard(
     Canvas canvas,
     StageElement element,
@@ -1268,10 +1366,7 @@ class _GalleryPainter3D extends CustomPainter {
   ) {
     final spec = element.type;
     final shape = _ipscPath(rect);
-    final fill = spec == StageElementType.knockDownTarget
-        ? const Color(0xFFCFD8DC)
-        : Colors.white;
-    canvas.drawPath(shape, Paint()..color = fill);
+    canvas.drawPath(shape, Paint()..color = Colors.white);
 
     final cover = spec == StageElementType.hardCoverTarget ||
         spec == StageElementType.hardCoverPartial;
@@ -1306,8 +1401,7 @@ class _GalleryPainter3D extends CustomPainter {
 
     if (spec == StageElementType.moverTarget ||
         spec == StageElementType.swingingTarget ||
-        spec == StageElementType.dropTurner ||
-        spec == StageElementType.knockDownTarget) {
+        spec == StageElementType.dropTurner) {
       canvas.drawRect(
         Rect.fromLTWH(
           rect.left - rect.width * 0.1,
