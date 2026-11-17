@@ -872,15 +872,30 @@ class _GalleryPainter3D extends CustomPainter {
           ..style = PaintingStyle.stroke
           ..strokeWidth = isSelected ? 3 : 1.5,
       );
-      final badge = switch (spec) {
-        StageElementType.shootingPosition => 'P',
-        StageElementType.spMarker => 'SP',
-        StageElementType.xxMarker => 'XX',
-        StageElementType.activatorPad => 'ACT',
-        _ => '',
-      };
-      if (badge.isNotEmpty) {
-        _drawLabel(canvas, badge, Offset(base.dx, base.dy - radius - 4));
+      if (spec == StageElementType.activatorPad) {
+        final tp = TextPainter(
+          text: TextSpan(
+            text: 'Активатор',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: math.max(radius * 0.34, 6),
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          textDirection: TextDirection.ltr,
+          maxLines: 1,
+        )..layout(maxWidth: radius * 2);
+        tp.paint(canvas, base - Offset(tp.width / 2, tp.height / 2));
+      } else {
+        final badge = switch (spec) {
+          StageElementType.shootingPosition => 'P',
+          StageElementType.spMarker => 'SP',
+          StageElementType.xxMarker => 'XX',
+          _ => '',
+        };
+        if (badge.isNotEmpty) {
+          _drawLabel(canvas, badge, Offset(base.dx, base.dy - radius - 4));
+        }
       }
       if (isSelected) {
         _drawLabel(canvas, spec.label, Offset(base.dx, base.dy + radius + 12));
@@ -958,11 +973,14 @@ class _GalleryPainter3D extends CustomPainter {
       case StageElementType.ipscMikro:
         _drawIpscMini(canvas, rect, isSelected, Colors.white);
         break;
+      case StageElementType.moverTarget:
+        _drawMoverTarget(canvas, rect, isSelected);
+        break;
+      case StageElementType.upDownTarget:
+        _drawUpDownTarget(canvas, rect, isSelected);
+        break;
       case StageElementType.hardCoverTarget:
       case StageElementType.hardCoverPartial:
-      case StageElementType.moverTarget:
-      case StageElementType.swingingTarget:
-      case StageElementType.dropTurner:
         _drawPaperCard(canvas, element, rect, isSelected);
         break;
       case StageElementType.visionBarrier:
@@ -1025,19 +1043,7 @@ class _GalleryPainter3D extends CustomPainter {
         _drawSquarePlate(canvas, rect, isSelected, const Color(0xFFD32F2F));
         break;
       case StageElementType.texasStar:
-        canvas.drawRect(rect, Paint()..color = spec.color);
-        canvas.drawRect(rect, border);
-        final platePaint = Paint()..color = Colors.grey.shade300;
-        for (var i = 0; i < 3; i++) {
-          canvas.drawCircle(
-            Offset(
-              rect.left + w * (0.2 + 0.3 * i),
-              rect.top + h * 0.4,
-            ),
-            math.max(w * 0.1, 1.5),
-            platePaint,
-          );
-        }
+        _drawTexasStar(canvas, rect, isSelected);
         break;
       case StageElementType.pallet:
         canvas.drawRect(rect, Paint()..color = spec.color);
@@ -1095,7 +1101,6 @@ class _GalleryPainter3D extends CustomPainter {
       case StageElementType.faultLine:
       case StageElementType.stopTape:
       case StageElementType.dashedLine:
-      case StageElementType.moverRail:
       case StageElementType.spMarker:
       case StageElementType.xxMarker:
       case StageElementType.activatorPad:
@@ -1336,6 +1341,53 @@ class _GalleryPainter3D extends CustomPainter {
     );
   }
 
+  void _drawTexasStar(Canvas canvas, Rect rect, bool isSelected) {
+    final starR = rect.width * 0.34;
+    final plateR = starR * 0.36;
+    final cy = rect.top + starR + plateR;
+    final cx = rect.center.dx;
+    final spoke = Paint()
+      ..color = _cardOutline
+      ..strokeWidth = math.max(rect.width * 0.03, 1.2);
+    canvas.drawLine(
+      Offset(cx, cy),
+      Offset(cx, rect.bottom),
+      spoke,
+    );
+    final baseH = math.max(rect.height * 0.025, 2.0);
+    canvas.drawRect(
+      Rect.fromLTWH(
+        cx - rect.width * 0.17,
+        rect.bottom - baseH,
+        rect.width * 0.34,
+        baseH,
+      ),
+      Paint()..color = _cardOutline,
+    );
+    final plateCenters = <Offset>[
+      for (var i = 0; i < 5; i++)
+        Offset(
+          cx + starR * math.cos(-math.pi / 2 + i * 2 * math.pi / 5),
+          cy + starR * math.sin(-math.pi / 2 + i * 2 * math.pi / 5),
+        ),
+    ];
+    for (final plateC in plateCenters) {
+      canvas.drawLine(Offset(cx, cy), plateC, spoke);
+    }
+    canvas.drawCircle(Offset(cx, cy), plateR * 0.5, Paint()..color = _cardOutline);
+    for (final plateC in plateCenters) {
+      canvas.drawCircle(plateC, plateR, Paint()..color = Colors.white);
+      canvas.drawCircle(
+        plateC,
+        plateR,
+        Paint()
+          ..color = _cardOutline
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = isSelected ? 2 : 1.2,
+      );
+    }
+  }
+
   void _drawSquarePlate(Canvas canvas, Rect rect, bool isSelected, Color fill) {
     final side = rect.width;
     final plate = Rect.fromLTWH(rect.left, rect.top, side, side);
@@ -1355,6 +1407,174 @@ class _GalleryPainter3D extends CustomPainter {
         ..color = _cardOutline
         ..style = PaintingStyle.stroke
         ..strokeWidth = isSelected ? 3 : math.max(rect.width * 0.10, 1.5),
+    );
+  }
+
+  void _drawMoverTarget(Canvas canvas, Rect rect, bool isSelected) {
+    final cx = rect.center.dx;
+    final pivot = Offset(cx, rect.top + rect.height * 0.58);
+    const plateColors = <Color>[
+      Color(0xFFF2EDE3),
+      Color(0xFFC9B78C),
+      Color(0xFFE8DCC0),
+      Color(0xFFD9C7A0),
+    ];
+    final armR = rect.width * 0.34;
+    final octW = rect.width * 0.20;
+    final octH = rect.width * 0.26;
+    final spoke = Paint()
+      ..color = _cardOutline
+      ..strokeWidth = math.max(rect.width * 0.012, 1);
+    final outline = Paint()
+      ..color = _cardOutline
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = isSelected ? 1.5 : 1;
+    final plateRects = <Rect>[
+      for (final deg in <double>[-150, -118, -80, -42])
+        Rect.fromCenter(
+          center: Offset(
+            pivot.dx + armR * math.cos(deg * math.pi / 180),
+            pivot.dy + armR * math.sin(deg * math.pi / 180),
+          ),
+          width: octW,
+          height: octH,
+        ),
+    ];
+    for (final plateRect in plateRects) {
+      canvas.drawLine(pivot, plateRect.center, spoke);
+    }
+    for (var i = 0; i < plateRects.length; i++) {
+      final shape = _roundedOctagonPath(plateRects[i], corner: 0.14);
+      canvas.drawPath(shape, Paint()..color = plateColors[i]);
+      canvas.drawPath(shape, outline);
+    }
+    final armEnd1 = Offset(cx - rect.width * 0.17, pivot.dy + rect.height * 0.15);
+    final armEnd2 = Offset(cx + rect.width * 0.17, pivot.dy + rect.height * 0.15);
+    canvas.drawLine(armEnd1, Offset(cx + rect.width * 0.07, pivot.dy + rect.height * 0.02), spoke);
+    canvas.drawLine(armEnd2, Offset(cx - rect.width * 0.07, pivot.dy + rect.height * 0.02), spoke);
+    final weightW = rect.width * 0.055;
+    canvas.drawRect(
+      Rect.fromCenter(center: armEnd1, width: weightW, height: weightW),
+      Paint()..color = _cardOutline,
+    );
+    canvas.drawRect(
+      Rect.fromCenter(center: armEnd2, width: weightW, height: weightW),
+      Paint()..color = _cardOutline,
+    );
+    canvas.drawLine(pivot, Offset(cx, rect.bottom - rect.height * 0.04), spoke);
+    final baseH = math.max(rect.height * 0.025, 2.0);
+    canvas.drawRect(
+      Rect.fromLTWH(
+        cx - rect.width * 0.15,
+        rect.bottom - baseH,
+        rect.width * 0.30,
+        baseH,
+      ),
+      Paint()..color = _cardOutline,
+    );
+    final arcRect = Rect.fromLTWH(
+      cx - rect.width * 0.30,
+      rect.top + rect.height * 0.05,
+      rect.width * 0.58,
+      rect.height * 0.26,
+    );
+    final arcPaint = Paint()
+      ..color = _cardOutline
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = math.max(rect.width * 0.018, 1.2);
+    const startAngle = math.pi + math.pi / 12;
+    const sweepAngle = 2 * math.pi / 3;
+    const endAngle = startAngle + sweepAngle;
+    final dotR = math.max(rect.width * 0.008, 1.0);
+    for (final t in <double>[0.18, 0.38, 0.58, 0.78]) {
+      final theta = startAngle + sweepAngle * t;
+      final dot = Offset(
+        arcRect.center.dx + arcRect.width / 2 * math.cos(theta),
+        arcRect.center.dy + arcRect.height / 2 * math.sin(theta),
+      );
+      canvas.drawCircle(dot, dotR, arcPaint);
+    }
+    final end = Offset(
+      arcRect.center.dx + arcRect.width / 2 * math.cos(endAngle),
+      arcRect.center.dy + arcRect.height / 2 * math.sin(endAngle),
+    );
+    final dir = Offset(-math.sin(endAngle), math.cos(endAngle));
+    final barbLen = rect.width * 0.05;
+    for (final phi in <double>[math.pi / 6, -math.pi / 6]) {
+      final rotated = Offset(
+        dir.dx * math.cos(phi) - dir.dy * math.sin(phi),
+        dir.dx * math.sin(phi) + dir.dy * math.cos(phi),
+      );
+      canvas.drawLine(end, end - rotated * (barbLen / rotated.distance), arcPaint);
+    }
+  }
+
+  void _drawUpDownTarget(Canvas canvas, Rect rect, bool isSelected) {
+    final cx = rect.center.dx;
+    const plateColors = <Color>[
+      Color(0xFFC9B78C),
+      Color(0xFFCFD8DC),
+      Color(0xFFF2EDE3),
+    ];
+    final octW = rect.width * 0.30;
+    final octH = octW * 1.7;
+    final outline = Paint()
+      ..color = _cardOutline
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    final centerY = rect.top + rect.height * 0.28;
+    final spacing = octH * 0.55;
+    final plateRects = <Rect>[
+      for (var i = 0; i < plateColors.length; i++)
+        Rect.fromCenter(
+          center: Offset(cx, centerY + i * spacing),
+          width: octW,
+          height: octH,
+        ),
+    ];
+    for (var i = 0; i < plateRects.length; i++) {
+      final ghost = i < plateRects.length - 1;
+      final fill = ghost
+          ? plateColors[i].withValues(alpha: 0.75)
+          : plateColors[i];
+      final shape = _roundedOctagonPath(plateRects[i], corner: 0.12);
+      canvas.drawPath(shape, Paint()..color = fill);
+      canvas.drawPath(shape, outline);
+    }
+    final bottomRect = plateRects.last;
+    final arrowX = cx + rect.width * 0.42;
+    final arrowPaint = Paint()
+      ..color = _cardOutline
+      ..strokeWidth = math.max(rect.width * 0.015, 1);
+    final yTop = rect.top + rect.height * 0.05;
+    final yBottom = bottomRect.bottom + rect.height * 0.04;
+    final tick = octW * 0.22;
+    canvas.drawLine(Offset(arrowX, yTop), Offset(arrowX, yBottom), arrowPaint);
+    canvas.drawLine(
+      Offset(arrowX - tick, yTop),
+      Offset(arrowX + tick, yTop),
+      arrowPaint,
+    );
+    canvas.drawLine(
+      Offset(arrowX - tick, yBottom),
+      Offset(arrowX + tick, yBottom),
+      arrowPaint,
+    );
+    final standTop = bottomRect.bottom + rect.height * 0.02;
+    canvas.drawLine(
+      Offset(cx, standTop),
+      Offset(cx, rect.bottom - rect.height * 0.05),
+      arrowPaint,
+    );
+    canvas.drawLine(
+      Offset(cx, rect.bottom - rect.height * 0.05),
+      Offset(cx - rect.width * 0.14, rect.bottom),
+      arrowPaint,
+    );
+    canvas.drawLine(
+      Offset(cx, rect.bottom - rect.height * 0.05),
+      Offset(cx + rect.width * 0.14, rect.bottom),
+      arrowPaint,
     );
   }
 
@@ -1398,20 +1618,6 @@ class _GalleryPainter3D extends CustomPainter {
         ..style = PaintingStyle.stroke
         ..strokeWidth = isSelected ? 2.5 : 1.2,
     );
-
-    if (spec == StageElementType.moverTarget ||
-        spec == StageElementType.swingingTarget ||
-        spec == StageElementType.dropTurner) {
-      canvas.drawRect(
-        Rect.fromLTWH(
-          rect.left - rect.width * 0.1,
-          rect.top - rect.height * 0.12,
-          rect.width * 1.2,
-          rect.height * 0.07,
-        ),
-        Paint()..color = Colors.grey.shade700,
-      );
-    }
   }
 
   void _drawLabel(Canvas canvas, String text, Offset at) {

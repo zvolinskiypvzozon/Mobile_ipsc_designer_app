@@ -17,11 +17,9 @@ enum StageElementType {
   roundPlateNs(PropCategory.steel, 'Круглая тарелка NS', 0.30, 0.36, Color(0xFFD32F2F)),
   squarePlate(PropCategory.steel, 'Квадратная тарелка', 0.30, 0.36, Color(0xFFCFD8DC)),
   squarePlateNs(PropCategory.steel, 'Квадратная тарелка NS', 0.30, 0.36, Color(0xFFD32F2F)),
-  activatorPad(PropCategory.movers, 'Активатор', 0.50, 0.35, Color(0xFF9E9E9E)),
-  moverTarget(PropCategory.movers, 'Движущаяся мишень', 0.45, 0.75, Color(0xFFFFFFFF)),
-  swingingTarget(PropCategory.movers, 'Качающаяся мишень', 0.45, 0.75, Color(0xFFFFFFFF)),
-  dropTurner(PropCategory.movers, 'Дроп-тёрнер', 0.45, 0.75, Color(0xFFFFFFFF)),
-  moverRail(PropCategory.movers, 'Рельс', 2.0, 0.10, Color(0xFF78909C)),
+  activatorPad(PropCategory.movers, 'Активатор', 0.35, 0.25, Color(0xFFD32F2F)),
+  moverTarget(PropCategory.movers, 'Движущаяся мишень', 1.0, 1.0, Color(0xFFFFFFFF)),
+  upDownTarget(PropCategory.movers, 'Up-Down', 0.45, 0.75, Color(0xFFFFFFFF)),
   hardCoverTarget(PropCategory.hardCoverVision, 'Хард-кавер', 0.45, 0.75, Color(0xFFFFFFFF)),
   hardCoverPartial(PropCategory.hardCoverVision, 'Хард-кавер частичный', 0.45, 0.55, Color(0xFFFFFFFF)),
   visionBarrier(PropCategory.hardCoverVision, 'Визион-барьер', 1.8, 1.1, Color(0xFF90A4AE)),
@@ -74,7 +72,6 @@ enum StageElementType {
       faultLine,
       stopTape,
       dashedLine,
-      moverRail,
     };
     const floorDiscs = <StageElementType>{
       shootingPosition,
