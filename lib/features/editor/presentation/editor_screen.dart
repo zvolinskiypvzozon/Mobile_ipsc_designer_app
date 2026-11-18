@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:material_ui/material_ui.dart';
@@ -31,6 +32,12 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   Offset _lastDelta = Offset.zero;
   Offset _dragRawPos = Offset.zero;
   final FocusNode _canvasFocus = FocusNode();
+  double _cameraScale = 1.0;
+  Offset _cameraOffset = Offset.zero;
+  bool _cameraGesture = false;
+  double _cameraStartScale = 1.0;
+  Offset _cameraStartFocal = Offset.zero;
+  Offset _cameraStartOffset = Offset.zero;
 
   @override
   void dispose() {
@@ -294,7 +301,17 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
       final w = math.max(p.widthPx(element.width, d), 12.0);
       final h = math.max(p.heightPx(element.height, d), 16.0);
       final rect = Rect.fromLTWH(base.dx - w / 2, base.dy - h, w, h);
-      if (rect.contains(point)) {
+      var local = point;
+      if (element.rotation != 0) {
+        final rot = element.rotation * math.pi / 180;
+        final rel = point - rect.center;
+        local = Offset(
+              rel.dx * math.cos(-rot) - rel.dy * math.sin(-rot),
+              rel.dx * math.sin(-rot) + rel.dy * math.cos(-rot),
+            ) +
+            rect.center;
+      }
+      if (rect.contains(local)) {
         return element.id;
       }
     }
@@ -315,7 +332,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   void _onTapUp(Offset local, Size size) {
     _canvasFocus.requestFocus();
-    final p = _Perspective(size);
+    final p = _Perspective(size, scale: _cameraScale, offset: _cameraOffset);
     if (_armedTool != null) {
       if (_armedTool!.archetype == PropArchetype.floorLine) {
         return;
@@ -338,13 +355,13 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   void _onPanStart(Offset local, Size size) {
     if (_armedTool != null &&
         _armedTool!.archetype == PropArchetype.floorLine) {
-      final p = _Perspective(size);
+      final p = _Perspective(size, scale: _cameraScale, offset: _cameraOffset);
       _drawStart = p.floorFromScreen(local);
       _drawCurrent = _drawStart;
       setState(() {});
       return;
     }
-    final p = _Perspective(size);
+    final p = _Perspective(size, scale: _cameraScale, offset: _cameraOffset);
     final hit = _hitTestElement(p, local);
     setState(() {
       _selectedElementId = hit;
@@ -359,33 +376,36 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   void _onPanUpdate(Offset local, Size size) {
+    debugPrint('pan: dragging=$_draggingElement delta=$_lastDelta cam=$_cameraOffset scale=$_cameraScale armed=$_armedTool');
     if (_armedTool != null &&
         _armedTool!.archetype == PropArchetype.floorLine) {
       if (_drawStart == null) {
         return;
       }
-      final p = _Perspective(size);
+      final p = _Perspective(size, scale: _cameraScale, offset: _cameraOffset);
       setState(() => _drawCurrent = p.floorFromScreen(local) ?? _drawCurrent);
       return;
     }
     if (!_draggingElement) {
+      setState(() => _cameraOffset += _lastDelta);
       return;
     }
     final element = _selectedElement;
     if (element == null) {
       return;
     }
-    final p = _Perspective(size);
+    final p = _Perspective(size, scale: _cameraScale, offset: _cameraOffset);
+    final deltaU = _lastDelta / _cameraScale;
     final dRaw = p.dOf(_dragRawPos.dy);
     final baseY = p.screenYFromD(dRaw);
-    final newBaseY = baseY + _lastDelta.dy;
+    final newBaseY = baseY + deltaU.dy;
     final dy = newBaseY - p.horizonY;
     double newY = _dragRawPos.dy;
     if (dy > 1) {
       final newD = p.kv * _Perspective.camHeight / dy;
       newY = (_Perspective.camDepth - newD).clamp(0.0, _Perspective.nearY);
     }
-    final newX = (_dragRawPos.dx + _lastDelta.dx * dRaw / p.kx).clamp(
+    final newX = (_dragRawPos.dx + deltaU.dx * dRaw / p.kx).clamp(
       -_Perspective.stageHalfWidth,
       _Perspective.stageHalfWidth,
     );
@@ -513,6 +533,115 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     return KeyEventResult.handled;
   }
 
+  void _zoomAt(Offset anchor, double newScale) {
+    final clamped = newScale.clamp(0.3, 4.0);
+    setState(() {
+      final ratio = clamped / _cameraScale;
+      _cameraOffset = anchor - (anchor - _cameraOffset) * ratio;
+      _cameraScale = clamped;
+    });
+  }
+
+  void _rotateSelected(double delta) {
+    final element = _selectedElement;
+    if (element == null) {
+      return;
+    }
+    _updateElement(
+      element.copyWith(rotation: (element.rotation + delta) % 360),
+    );
+  }
+
+  void _resizeSelected({double? width, double? height}) {
+    final element = _selectedElement;
+    if (element == null) {
+      return;
+    }
+    _updateElement(
+      element.copyWith(
+        width: (width ?? element.width).clamp(0.05, 20.0),
+        height: (height ?? element.height).clamp(0.05, 20.0),
+      ),
+    );
+  }
+
+  Widget _buildSelectionToolbar(StageElement element) {
+    return Container(
+      width: double.infinity,
+      color: Colors.black26,
+      padding: const EdgeInsets.symmetric(vertical: 2),
+      child: Row(
+        children: <Widget>[
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.rotate_90_degrees_ccw),
+            tooltip: 'Повернуть влево на 90°',
+            onPressed: () => _rotateSelected(-90),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.rotate_left),
+            tooltip: 'Повернуть влево на 15°',
+            onPressed: () => _rotateSelected(-15),
+          ),
+          Text(
+            '${element.rotation.toStringAsFixed(0)}°',
+            style: const TextStyle(fontSize: 12),
+          ),
+          TextButton(
+            onPressed: () =>
+                _updateElement(element.copyWith(rotation: 0)),
+            child: const Text('0°', style: TextStyle(fontSize: 12)),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.rotate_right),
+            tooltip: 'Повернуть вправо на 15°',
+            onPressed: () => _rotateSelected(15),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.rotate_90_degrees_cw),
+            tooltip: 'Повернуть вправо на 90°',
+            onPressed: () => _rotateSelected(90),
+          ),
+          const SizedBox(width: 12),
+          _dimensionStepper('Ш', element.width, (v) => _resizeSelected(width: v)),
+          const SizedBox(width: 8),
+          _dimensionStepper('В', element.height, (v) => _resizeSelected(height: v)),
+        ],
+      ),
+    );
+  }
+
+  Widget _dimensionStepper(
+    String label,
+    double value,
+    ValueChanged<double> onChanged,
+  ) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          '$label: ${value.toStringAsFixed(2)}',
+          style: const TextStyle(fontSize: 12),
+        ),
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          icon: const Icon(Icons.remove, size: 18),
+          tooltip: 'Уменьшить на 0,05 м',
+          onPressed: () => onChanged(value - 0.05),
+        ),
+        IconButton(
+          visualDensity: VisualDensity.compact,
+          icon: const Icon(Icons.add, size: 18),
+          tooltip: 'Увеличить на 0,05 м',
+          onPressed: () => onChanged(value + 0.05),
+        ),
+      ],
+    );
+  }
+
   Widget _buildModeBanner() {
     final tool = _armedTool!;
     final hint = tool.archetype == PropArchetype.floorLine
@@ -593,31 +722,74 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             child: LayoutBuilder(
               builder: (BuildContext context, BoxConstraints constraints) {
                 final size = constraints.biggest;
-                return GestureDetector(
-                  behavior: HitTestBehavior.opaque,
-                  onTapUp: (TapUpDetails details) =>
-                      _onTapUp(details.localPosition, size),
-                  onPanStart: (DragStartDetails details) =>
-                      _onPanStart(details.localPosition, size),
-                  onPanUpdate: (DragUpdateDetails details) {
-                    _lastDelta = details.delta;
-                    _onPanUpdate(details.localPosition, size);
+                return Listener(
+                  onPointerSignal: (PointerSignalEvent event) {
+                    if (event is PointerScrollEvent) {
+                      final factor = math.exp(-event.scrollDelta.dy / 400);
+                      _zoomAt(event.localPosition, _cameraScale * factor);
+                    }
                   },
-                  onPanEnd: (DragEndDetails details) => _onPanEnd(),
-                  child: CustomPaint(
-                    key: const ValueKey('galleryCanvas'),
-                    size: size,
-                    painter: _GalleryPainter3D(
-                      elements: _stage.elements,
-                      selectedId: _selectedElementId,
-                      previewStart: _drawStart,
-                      previewEnd: _drawCurrent,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTapUp: (TapUpDetails details) =>
+                        _onTapUp(details.localPosition, size),
+                    onScaleStart: (ScaleStartDetails details) {
+                      if (details.pointerCount >= 2) {
+                        setState(() {
+                          _cameraGesture = true;
+                          _cameraStartScale = _cameraScale;
+                          _cameraStartFocal = details.localFocalPoint;
+                          _cameraStartOffset = _cameraOffset;
+                        });
+                      } else {
+                        _cameraGesture = false;
+                        _onPanStart(details.localFocalPoint, size);
+                      }
+                    },
+                    onScaleUpdate: (ScaleUpdateDetails details) {
+                      if (_cameraGesture && details.pointerCount >= 2) {
+                        setState(() {
+                          final newScale =
+                              (_cameraStartScale * details.scale).clamp(
+                            0.3,
+                            4.0,
+                          );
+                          final ratio = newScale / _cameraStartScale;
+                          _cameraScale = newScale;
+                          _cameraOffset = _cameraStartFocal +
+                              (details.localFocalPoint - _cameraStartFocal) -
+                              (_cameraStartFocal - _cameraStartOffset) * ratio;
+                        });
+                      } else if (!_cameraGesture) {
+                        _lastDelta = details.focalPointDelta;
+                        _onPanUpdate(details.localFocalPoint, size);
+                      }
+                    },
+                    onScaleEnd: (ScaleEndDetails details) {
+                      if (_cameraGesture) {
+                        setState(() => _cameraGesture = false);
+                      } else {
+                        _onPanEnd();
+                      }
+                    },
+                    child: CustomPaint(
+                      key: const ValueKey('galleryCanvas'),
+                      size: size,
+                      painter: _GalleryPainter3D(
+                        elements: _stage.elements,
+                        selectedId: _selectedElementId,
+                        cameraScale: _cameraScale,
+                        cameraOffset: _cameraOffset,
+                        previewStart: _drawStart,
+                        previewEnd: _drawCurrent,
+                      ),
                     ),
                   ),
                 );
               },
             ),
           ),
+          if (selected != null) _buildSelectionToolbar(selected),
           if (_armedTool != null) _buildModeBanner(),
           const SizedBox(height: 8),
         ],
@@ -628,9 +800,11 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 }
 
 class _Perspective {
-  _Perspective(this.size);
+  _Perspective(this.size, {this.scale = 1.0, this.offset = Offset.zero});
 
   final Size size;
+  final double scale;
+  final Offset offset;
 
   static const double camHeight = 1.7;
   static const double camDepth = 52;
@@ -651,11 +825,16 @@ class _Perspective {
 
   Offset floorPoint(double x, double y) {
     final d = dOf(y);
-    return Offset(size.width / 2 + kx * x / d, screenYFromD(d));
+    final base = Offset(size.width / 2 + kx * x / d, screenYFromD(d));
+    return Offset(base.dx * scale + offset.dx, base.dy * scale + offset.dy);
   }
 
   (double, double)? floorFromScreen(Offset point) {
-    final dy = point.dy - horizonY;
+    final p = Offset(
+      (point.dx - offset.dx) / scale,
+      (point.dy - offset.dy) / scale,
+    );
+    final dy = p.dy - horizonY;
     if (dy <= 1) {
       return null;
     }
@@ -664,34 +843,38 @@ class _Perspective {
     if (y < 0 || y > nearY) {
       return null;
     }
-    final x = (point.dx - size.width / 2) * d / kx;
+    final x = (p.dx - size.width / 2) * d / kx;
     if (x < -stageHalfWidth || x > stageHalfWidth) {
       return null;
     }
     return (x, y);
   }
 
-  double heightPx(double meters, double d) => kv * meters / d;
+  double heightPx(double meters, double d) => kv * meters / d * scale;
 
-  double widthPx(double meters, double d) => kx * meters / d;
+  double widthPx(double meters, double d) => kx * meters / d * scale;
 }
 
 class _GalleryPainter3D extends CustomPainter {
   _GalleryPainter3D({
     required this.elements,
     required this.selectedId,
+    required this.cameraScale,
+    required this.cameraOffset,
     this.previewStart,
     this.previewEnd,
   });
 
   final List<StageElement> elements;
   final String? selectedId;
+  final double cameraScale;
+  final Offset cameraOffset;
   final (double, double)? previewStart;
   final (double, double)? previewEnd;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final p = _Perspective(size);
+    final p = _Perspective(size, scale: cameraScale, offset: cameraOffset);
 
     canvas.drawRect(
       Offset.zero & size,
@@ -911,6 +1094,14 @@ class _GalleryPainter3D extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = isSelected ? 3 : 1.5;
 
+    final rotated = element.rotation != 0;
+    if (rotated) {
+      canvas.save();
+      canvas.translate(rect.center.dx, rect.center.dy);
+      canvas.rotate(element.rotation * math.pi / 180);
+      canvas.translate(-rect.center.dx, -rect.center.dy);
+    }
+
     switch (spec) {
       case StageElementType.cone:
         final path = Path()
@@ -995,6 +1186,7 @@ class _GalleryPainter3D extends CustomPainter {
         _drawDrum(canvas, rect, openTop: true);
         break;
       case StageElementType.vbBarrier05:
+      case StageElementType.vbBarrierSq05:
       case StageElementType.vbBarrier1:
       case StageElementType.vbBarrier2:
       case StageElementType.vbBarrier3:
@@ -1017,38 +1209,40 @@ class _GalleryPainter3D extends CustomPainter {
       case StageElementType.vbPallet:
         _drawVbPallet(canvas, rect, isSelected);
         break;
-      case StageElementType.door:
-      case StageElementType.doorWithWindow:
-        canvas.drawRect(rect, Paint()..color = spec.color);
-        canvas.drawRect(
-          rect.inflate(w * 0.06),
-          Paint()
-            ..color = const Color(0xFF4E342A)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = math.max(w * 0.08, 2),
-        );
-        if (spec == StageElementType.doorWithWindow) {
-          canvas.drawRect(
-            Rect.fromLTWH(
-              rect.left + w * 0.2,
-              rect.top + h * 0.15,
-              w * 0.6,
-              h * 0.25,
-            ),
-            Paint()..color = Colors.white70,
-          );
-        }
-        break;
-      case StageElementType.widePort:
-      case StageElementType.windowFrame:
-      case StageElementType.portSquare:
-        canvas.drawRect(
+      case StageElementType.doorWindowSmall:
+        _drawDarkPanelRect(
+          canvas,
           rect,
-          Paint()
-            ..color = spec.color
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = math.max(w * 0.12, 2),
+          0.24,
+          0.13,
+          0.38,
+          0.31,
+          bodyAlpha: 0.35,
         );
+        break;
+      case StageElementType.doorWindowLarge:
+        _drawDarkPanelRect(canvas, rect, 0.55, 0.36, 0.225, 0.10);
+        break;
+      case StageElementType.windowPanelWide:
+        _drawDarkPanelRect(canvas, rect, 0.70, 0.42, 0.15, 0.29);
+        break;
+      case StageElementType.windowPanelTop:
+        _drawDarkPanelRect(canvas, rect, 0.70, 0.30, 0.15, 0.10);
+        break;
+      case StageElementType.stairsRight:
+        _drawStairs(canvas, rect, false, isSelected);
+        break;
+      case StageElementType.stairsLeft:
+        _drawStairs(canvas, rect, true, isSelected);
+        break;
+      case StageElementType.lowStep:
+        _drawLowStep(canvas, rect, isSelected);
+        break;
+      case StageElementType.frameSquare:
+        _drawFrameSquare(canvas, rect, isSelected);
+        break;
+      case StageElementType.portMarked:
+        _drawPortMarked(canvas, rect, isSelected);
         break;
       case StageElementType.roundPlate:
         _drawRoundPlate(canvas, rect, isSelected, Colors.white);
@@ -1126,6 +1320,10 @@ class _GalleryPainter3D extends CustomPainter {
       case StageElementType.activatorPad:
       case StageElementType.shootingPosition:
         break;
+    }
+
+    if (rotated) {
+      canvas.restore();
     }
 
     if (isSelected) {
@@ -1780,6 +1978,115 @@ class _GalleryPainter3D extends CustomPainter {
         ..color = _cardOutline
         ..style = PaintingStyle.stroke
         ..strokeWidth = isSelected ? 2.5 : 1.2,
+    );
+  }
+
+  void _drawDarkPanelRect(
+    Canvas canvas,
+    Rect rect,
+    double panelW,
+    double panelH,
+    double offsetX,
+    double offsetY, {
+    double bodyAlpha = 1.0,
+  }) {
+    final panel = Rect.fromLTWH(
+      rect.left + rect.width * offsetX,
+      rect.top + rect.height * offsetY,
+      rect.width * panelW,
+      rect.height * panelH,
+    );
+    canvas.drawRect(
+      rect,
+      Paint()..color = const Color(0xFF252B36).withValues(alpha: bodyAlpha),
+    );
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..color = const Color(0xFF4A5568)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+    canvas.drawRect(
+      panel,
+      Paint()
+        ..color = const Color(0xFFD6DCE5)
+        .withValues(alpha: bodyAlpha < 1 ? 0.75 : 0.85),
+    );
+    canvas.drawRect(
+      panel,
+      Paint()
+        ..color = _cardOutline
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+  }
+
+  void _drawStairs(Canvas canvas, Rect rect, bool mirror, bool isSelected) {
+    const steps = 4;
+    final stepW = rect.width / steps;
+    final stepH = rect.height / steps;
+    final path = Path();
+    if (!mirror) {
+      path.moveTo(rect.left, rect.bottom);
+      for (var i = 0; i < steps; i++) {
+        path.lineTo(rect.left + stepW * (i + 1), rect.bottom - stepH * i);
+        path.lineTo(rect.left + stepW * (i + 1), rect.bottom - stepH * (i + 1));
+      }
+    } else {
+      path.moveTo(rect.right, rect.bottom);
+      for (var i = 0; i < steps; i++) {
+        path.lineTo(rect.right - stepW * (i + 1), rect.bottom - stepH * i);
+        path.lineTo(rect.right - stepW * (i + 1), rect.bottom - stepH * (i + 1));
+      }
+    }
+    path.close();
+    canvas.drawPath(path, Paint()..color = const Color(0xFFD8CBA9));
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = _cardOutline
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isSelected ? 2 : 1.2,
+    );
+  }
+
+  void _drawLowStep(Canvas canvas, Rect rect, bool isSelected) {
+    canvas.drawRect(rect, Paint()..color = const Color(0xFFD8CBA9));
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..color = _cardOutline
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isSelected ? 2 : 1.2,
+    );
+  }
+
+  void _drawFrameSquare(Canvas canvas, Rect rect, bool isSelected) {
+    canvas.drawRect(rect, Paint()..color = const Color(0xFF252B36));
+    final frameW = math.min(rect.width, rect.height) * 0.12;
+    canvas.drawRect(
+      rect.deflate(frameW / 2),
+      Paint()
+        ..color = const Color(0xFF14141A)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = frameW,
+    );
+  }
+
+  void _drawPortMarked(Canvas canvas, Rect rect, bool isSelected) {
+    canvas.drawRect(rect, Paint()..color = const Color(0xFF4A5568));
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..color = _cardOutline
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
+    );
+    canvas.drawCircle(
+      rect.center,
+      rect.width * 0.08,
+      Paint()..color = const Color(0xFFD32F2F),
     );
   }
 

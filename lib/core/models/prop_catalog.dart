@@ -4,7 +4,7 @@ enum PropCategory {
   movers('ДВИЖУЩИЕСЯ И АКТИВАТОРЫ'),
   visualBarriers('ВИЗУАЛЬНЫЕ БАРЬЕРЫ'),
   barricades('БАРРИКАДЫ'),
-  doorsPorts('ДВЕРИ И ПОРТЫ'),
+  doorsPorts('ДВЕРИ И ОКНА'),
   markers('МАРКЕРЫ СТЕЙДЖА'),
   support('ОПОРНЫЕ КОНСТРУКЦИИ');
 

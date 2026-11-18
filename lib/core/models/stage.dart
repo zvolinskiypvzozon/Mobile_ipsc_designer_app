@@ -7,6 +7,10 @@ const _rescaledDefaultTypes = <StageElementType>{
   StageElementType.ipscMikro,
   StageElementType.activatorPad,
   StageElementType.upDownTarget,
+  StageElementType.vbBarrelDouble,
+  StageElementType.wheelStack5,
+  StageElementType.wheelStack8,
+  StageElementType.doorWindowSmall,
 };
 
 StageElement _snapToCurrentDefault(StageElement element) {

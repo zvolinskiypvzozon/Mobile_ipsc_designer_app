@@ -38,6 +38,17 @@ Future<void> _placeStandart(WidgetTester tester) async {
 Offset _canvasOrigin(WidgetTester tester) =>
     tester.getTopLeft(find.byKey(_canvasKey));
 
+Offset _floorPointToCanvas(WidgetTester tester, double x, double y) {
+  final size = _canvasRender(tester).size;
+  final horizon = size.height * 0.14;
+  final kv = (size.height * 0.96 - horizon) * 2 / 1.7;
+  final d = 52 - y;
+  return Offset(size.width / 2 + kv * x / d, horizon + kv * 1.7 / d);
+}
+
+Offset _elementBase(WidgetTester tester, StageElement element) =>
+    _floorPointToCanvas(tester, element.position.dx, element.position.dy);
+
 void main() {
   testWidgets('Библиотека стейджей открывается', (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: IpscDesignerApp()));
@@ -123,17 +134,21 @@ void main() {
     final origin = _canvasOrigin(tester);
     await tester.tapAt(origin + const Offset(400, 400));
     await tester.pumpAndSettle();
+    final firstElement = _canvasElements(tester).first;
 
-    await tester.tapAt(origin + const Offset(460, 440));
+    await tester.tapAt(origin + const Offset(460, 400));
     await tester.pumpAndSettle();
     expect(_canvasElements(tester), hasLength(2));
 
-    await tester.tapAt(origin + const Offset(400, 400));
+    await tester.tapAt(origin + _elementBase(tester, firstElement) - const Offset(0, 6));
     await tester.pumpAndSettle();
     expect(_canvasElements(tester), hasLength(2));
 
     final before = _canvasElements(tester).first.position;
-    await tester.dragFrom(origin + const Offset(400, 395), const Offset(0, -120));
+    await tester.dragFrom(
+      origin + _elementBase(tester, _canvasElements(tester).first) - const Offset(0, 10),
+      const Offset(0, -120),
+    );
     await tester.pumpAndSettle();
     expect(_canvasElements(tester), hasLength(2));
     expect(
@@ -156,13 +171,18 @@ void main() {
     await tester.pumpAndSettle();
     expect(_canvasElements(tester), hasLength(2));
 
-    await tester.dragFrom(origin + const Offset(484, 395), const Offset(40, 0));
+    final dragStart = origin + _elementBase(tester, _canvasElements(tester).last) - const Offset(0, 5);
+    debugPrint('beforeDrag: ${_canvasElements(tester).map((e) => e.position)} canvas=${_canvasRender(tester).size} dragStart=$dragStart');
+    await tester.dragFrom(dragStart, const Offset(40, 0));
+    await tester.pumpAndSettle();
+    debugPrint('afterDrag: ${_canvasElements(tester).map((e) => e.position)}');
     await tester.pumpAndSettle();
     final second = _canvasElements(tester).last.position;
     expect(second.dx, moreOrLessEquals(first.dx + 0.45, epsilon: 0.0001));
     expect(second.dy, moreOrLessEquals(first.dy, epsilon: 0.0001));
 
-    await tester.dragFrom(origin + const Offset(488, 395), const Offset(0, -150));
+    final dragStart2 = origin + _elementBase(tester, _canvasElements(tester).last) - const Offset(0, 5);
+    await tester.dragFrom(dragStart2, const Offset(0, -150));
     await tester.pumpAndSettle();
     final released = _canvasElements(tester).last.position;
     expect(
