@@ -971,7 +971,13 @@ class _GalleryPainter3D extends CustomPainter {
         _drawIpscMini(canvas, rect, isSelected, const Color(0xFFD32F2F));
         break;
       case StageElementType.ipscMikro:
-        _drawIpscMini(canvas, rect, isSelected, Colors.white);
+        _drawIpscMini(
+          canvas,
+          rect,
+          isSelected,
+          Colors.white,
+          cardHeightFactor: 0.20,
+        );
         break;
       case StageElementType.moverTarget:
         _drawMoverTarget(canvas, rect, isSelected);
@@ -1225,14 +1231,15 @@ class _GalleryPainter3D extends CustomPainter {
     Canvas canvas,
     Rect rect,
     bool isSelected,
-    Color fill,
-  ) {
+    Color fill, {
+    double cardHeightFactor = 0.34,
+  }) {
     final cardW = rect.width * 0.62;
     final cardRect = Rect.fromLTWH(
       rect.center.dx - cardW / 2,
       rect.top,
       cardW,
-      rect.height * 0.34,
+      rect.height * cardHeightFactor,
     );
     final legW = math.max(rect.width * 0.05, 1.0);
     final legH = rect.bottom - cardRect.bottom;
