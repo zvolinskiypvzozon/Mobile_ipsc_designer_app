@@ -162,7 +162,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         return Icons.disc_full;
       case PropCategory.movers:
         return Icons.swap_horiz;
-      case PropCategory.hardCoverVision:
+      case PropCategory.visualBarriers:
         return Icons.visibility_off;
       case PropCategory.barricades:
         return Icons.foundation;
@@ -985,23 +985,37 @@ class _GalleryPainter3D extends CustomPainter {
       case StageElementType.upDownTarget:
         _drawUpDownTarget(canvas, rect, isSelected);
         break;
-      case StageElementType.hardCoverTarget:
-      case StageElementType.hardCoverPartial:
-        _drawPaperCard(canvas, element, rect, isSelected);
+      case StageElementType.vbBarrel:
+        _drawDrum(canvas, rect, openTop: false);
         break;
-      case StageElementType.visionBarrier:
-      case StageElementType.visionBarrierNarrow:
-        canvas.drawRect(
-          rect,
-          Paint()..color = spec.color.withValues(alpha: 0.35),
-        );
-        canvas.drawRect(
-          rect,
-          Paint()
-            ..color = spec.color
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = isSelected ? 3 : 2,
-        );
+      case StageElementType.vbBarrelDouble:
+        _drawDoubleDrum(canvas, rect);
+        break;
+      case StageElementType.vbBarrelOpen:
+        _drawDrum(canvas, rect, openTop: true);
+        break;
+      case StageElementType.vbBarrier05:
+      case StageElementType.vbBarrier1:
+      case StageElementType.vbBarrier2:
+      case StageElementType.vbBarrier3:
+        _drawVisualBarrier(canvas, rect, isSelected);
+        break;
+      case StageElementType.wheelLarge:
+        _drawWheelStack(canvas, rect, 1, isSelected);
+        break;
+      case StageElementType.wheelStack5:
+        _drawWheelStack(canvas, rect, 5, isSelected);
+        break;
+      case StageElementType.wheelStack8:
+        _drawWheelStack(canvas, rect, 8, isSelected);
+        break;
+      case StageElementType.curtainFrame1:
+      case StageElementType.curtainFrame2:
+      case StageElementType.curtainFrame3:
+        _drawCurtainFrame(canvas, rect, isSelected);
+        break;
+      case StageElementType.vbPallet:
+        _drawVbPallet(canvas, rect, isSelected);
         break;
       case StageElementType.door:
       case StageElementType.doorWithWindow:
@@ -1585,41 +1599,183 @@ class _GalleryPainter3D extends CustomPainter {
     );
   }
 
-  void _drawPaperCard(
+  static const Color _drumBody = Color(0xFF2E5E96);
+  static const Color _drumRim = Color(0xFF5B8FD9);
+  static const Color _drumOpening = Color(0xFF14141A);
+  static const Color _barrierFill = Color(0xFFD6DCE5);
+  static const Color _barrierEdge = Color(0xFFE8ECF2);
+  static const Color _tire = Color(0xFF23232A);
+
+  void _drawDrumSegment(
     Canvas canvas,
-    StageElement element,
-    Rect rect,
-    bool isSelected,
+    Rect body,
+    Offset topCenter,
+    double topH,
+    bool openTop,
   ) {
-    final spec = element.type;
-    final shape = _ipscPath(rect);
-    canvas.drawPath(shape, Paint()..color = Colors.white);
-
-    final cover = spec == StageElementType.hardCoverTarget ||
-        spec == StageElementType.hardCoverPartial;
-    if (cover) {
-      canvas.save();
-      canvas.clipPath(shape);
-      canvas.drawRect(
-        Rect.fromLTWH(rect.left, rect.top, rect.width, rect.height * 0.4),
-        Paint()..color = Colors.black87,
+    final drum = RRect.fromRectAndCorners(
+      body,
+      topLeft: Radius.circular(body.width * 0.12),
+      topRight: Radius.circular(body.width * 0.12),
+      bottomLeft: Radius.circular(body.width * 0.12),
+      bottomRight: Radius.circular(body.width * 0.12),
+    );
+    canvas.drawRRect(drum, Paint()..color = _drumBody);
+    canvas.drawRRect(
+      drum,
+      Paint()
+        ..color = _cardOutline
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.2,
+    );
+    final rim = Rect.fromCenter(center: topCenter, width: body.width * 0.92, height: topH);
+    canvas.drawOval(rim, Paint()..color = _drumRim);
+    canvas.drawOval(
+      rim,
+      Paint()
+        ..color = _cardOutline
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+    if (openTop) {
+      canvas.drawOval(
+        Rect.fromCenter(
+          center: topCenter,
+          width: body.width * 0.68,
+          height: topH * 0.62,
+        ),
+        Paint()..color = _drumOpening,
       );
-      canvas.restore();
     }
+  }
 
-    final inset = math.min(rect.width, rect.height) * 0.09;
-    if (inset > 0.5) {
-      canvas.drawPath(
-        _ipscPath(rect.deflate(inset)),
-        Paint()
-          ..color = _cardOutline
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = math.max(rect.width * 0.02, 0.8),
+  void _drawDrum(Canvas canvas, Rect rect, {required bool openTop}) {
+    final topH = rect.width * 0.20;
+    final bodyTop = rect.top + topH / 2;
+    final body = Rect.fromLTWH(
+      rect.left,
+      bodyTop,
+      rect.width,
+      rect.height - (bodyTop - rect.top) - rect.width * 0.06,
+    );
+    _drawDrumSegment(
+      canvas,
+      body,
+      Offset(rect.center.dx, rect.top + topH / 2),
+      topH,
+      openTop,
+    );
+  }
+
+  void _drawDoubleDrum(Canvas canvas, Rect rect) {
+    final inset = (rect.width - rect.width * 0.72) / 2;
+    final topH = rect.width * 0.72 * 0.22;
+    final segH = rect.height / 2;
+    _drawDrumSegment(
+      canvas,
+      Rect.fromLTWH(
+        rect.left + inset,
+        rect.top + topH / 2,
+        rect.width * 0.72,
+        segH - topH / 2 - rect.width * 0.05,
+      ),
+      Offset(rect.center.dx, rect.top + topH / 2),
+      topH,
+      false,
+    );
+    _drawDrumSegment(
+      canvas,
+      Rect.fromLTWH(
+        rect.left + inset,
+        rect.top + segH + topH / 2,
+        rect.width * 0.72,
+        segH - topH / 2 - rect.width * 0.05,
+      ),
+      Offset(rect.center.dx, rect.top + segH + topH / 2),
+      topH,
+      false,
+    );
+  }
+
+  void _drawVisualBarrier(Canvas canvas, Rect rect, bool isSelected) {
+    canvas.drawRect(
+      rect,
+      Paint()..color = _barrierFill.withValues(alpha: 0.22),
+    );
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..color = _barrierEdge
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isSelected ? 3 : 2,
+    );
+  }
+
+  void _drawWheelStack(Canvas canvas, Rect rect, int count, bool isSelected) {
+    final tireH = rect.height / count;
+    final tirePaint = Paint()
+      ..color = _tire
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = tireH * 0.52;
+    final outline = Paint()
+      ..color = _cardOutline
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    for (var i = 0; i < count; i++) {
+      final centerY = rect.bottom - tireH * (i + 0.5);
+      final tire = Rect.fromCenter(
+        center: Offset(rect.center.dx, centerY),
+        width: rect.width * 0.94,
+        height: tireH * 0.82,
+      );
+      canvas.drawOval(tire, tirePaint);
+      canvas.drawOval(tire, outline);
+    }
+  }
+
+  void _drawCurtainFrame(Canvas canvas, Rect rect, bool isSelected) {
+    canvas.drawRect(
+      rect,
+      Paint()..color = _barrierFill.withValues(alpha: 0.16),
+    );
+    final stripe = Paint()
+      ..color = _barrierEdge
+      ..strokeWidth = math.max(rect.width * 0.02, 1);
+    final stripes = ((rect.width / rect.height) * 8).round().clamp(4, 14);
+    final inset = rect.width * 0.06;
+    for (var i = 1; i < stripes; i++) {
+      final x = rect.left + inset + (rect.width - inset * 2) * i / stripes;
+      canvas.drawLine(
+        Offset(x, rect.top + rect.height * 0.03),
+        Offset(x, rect.bottom - rect.height * 0.03),
+        stripe,
       );
     }
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..color = _barrierEdge
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = isSelected ? 3 : 2,
+    );
+  }
 
-    canvas.drawPath(
-      shape,
+  void _drawVbPallet(Canvas canvas, Rect rect, bool isSelected) {
+    canvas.drawRect(rect, Paint()..color = const Color(0xFFC9A66B));
+    canvas.drawRect(rect, Paint()..color = const Color(0xFF8D6E63));
+    final gap = Paint()
+      ..color = const Color(0xFF6D4C41)
+      ..strokeWidth = math.max(rect.height * 0.035, 1.5);
+    for (var i = 1; i < 5; i++) {
+      final y = rect.top + rect.height * i / 5;
+      canvas.drawLine(
+        Offset(rect.left + rect.width * 0.04, y),
+        Offset(rect.right - rect.width * 0.04, y),
+        gap,
+      );
+    }
+    canvas.drawRect(
+      rect,
       Paint()
         ..color = _cardOutline
         ..style = PaintingStyle.stroke

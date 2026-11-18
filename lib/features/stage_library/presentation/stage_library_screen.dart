@@ -57,7 +57,20 @@ class StageLibraryScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final stagesAsync = ref.watch(stagesProvider);
     return Scaffold(
-      appBar: AppBar(title: const Text('Библиотека стейджей')),
+      appBar: AppBar(
+        title: const Text('Библиотека стейджей'),
+        actions: const <Widget>[
+          Padding(
+            padding: EdgeInsets.only(right: 12),
+            child: Center(
+              child: Text(
+                'v1.3',
+                style: TextStyle(fontSize: 11, color: Colors.white60),
+              ),
+            ),
+          ),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _openEditor(context, null),
         icon: const Icon(Icons.add),

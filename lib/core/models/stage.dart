@@ -2,6 +2,21 @@ import 'package:flutter/widgets.dart';
 
 import 'stage_element.dart';
 
+const _rescaledDefaultTypes = <StageElementType>{
+  StageElementType.popper,
+  StageElementType.ipscMikro,
+  StageElementType.activatorPad,
+  StageElementType.upDownTarget,
+};
+
+StageElement _snapToCurrentDefault(StageElement element) {
+  if (_rescaledDefaultTypes.contains(element.type)) {
+    final size = element.type.defaultSize;
+    return element.copyWith(width: size.width, height: size.height);
+  }
+  return element;
+}
+
 @immutable
 class Stage {
   const Stage({
@@ -24,6 +39,7 @@ class Stage {
       elements: elementRows
           .map(_elementFromRowOrNull)
           .whereType<StageElement>()
+          .map(_snapToCurrentDefault)
           .toList(),
     );
   }

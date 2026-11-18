@@ -2,7 +2,7 @@ enum PropCategory {
   ipscTargets('МИШЕНИ IPSC'),
   steel('МЕТАЛЛИЧЕСКИЕ МИШЕНИ'),
   movers('ДВИЖУЩИЕСЯ И АКТИВАТОРЫ'),
-  hardCoverVision('ХАРД-КАВЕР И ВИЗИОН'),
+  visualBarriers('ВИЗУАЛЬНЫЕ БАРЬЕРЫ'),
   barricades('БАРРИКАДЫ'),
   doorsPorts('ДВЕРИ И ПОРТЫ'),
   markers('МАРКЕРЫ СТЕЙДЖА'),
