@@ -551,6 +551,18 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     );
   }
 
+  void _pitchSelected(double delta) {
+    final element = _selectedElement;
+    if (element == null) {
+      return;
+    }
+    var next = (element.pitch + delta) % 360;
+    if (next > 180) {
+      next -= 360;
+    }
+    _updateElement(element.copyWith(pitch: next));
+  }
+
   void _resizeSelected({double? width, double? height}) {
     final element = _selectedElement;
     if (element == null) {
@@ -604,6 +616,29 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
             icon: const Icon(Icons.rotate_90_degrees_cw),
             tooltip: 'Повернуть вправо на 90°',
             onPressed: () => _rotateSelected(90),
+          ),
+          const SizedBox(width: 8),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.flip_to_back),
+            tooltip: 'Разворот от себя на 45°',
+            onPressed: () => _pitchSelected(-45),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.flip_to_front),
+            tooltip: 'Разворот к себе на 45°',
+            onPressed: () => _pitchSelected(45),
+          ),
+          Text(
+            '${element.pitch.toStringAsFixed(0)}°',
+            style: const TextStyle(fontSize: 12),
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.restart_alt, size: 18),
+            tooltip: 'Сбросить наклон',
+            onPressed: () => _updateElement(element.copyWith(pitch: 0)),
           ),
           const SizedBox(width: 12),
           _dimensionStepper('Ш', element.width, (v) => _resizeSelected(width: v)),
@@ -1094,11 +1129,16 @@ class _GalleryPainter3D extends CustomPainter {
       ..style = PaintingStyle.stroke
       ..strokeWidth = isSelected ? 3 : 1.5;
 
-    final rotated = element.rotation != 0;
+    final rotated = element.rotation != 0 || element.pitch != 0;
     if (rotated) {
       canvas.save();
       canvas.translate(rect.center.dx, rect.center.dy);
       canvas.rotate(element.rotation * math.pi / 180);
+      final pitchRad = element.pitch * math.pi / 180;
+      final scaleY = math.cos(pitchRad).abs() < 0.05
+          ? 0.05 * (math.cos(pitchRad) < 0 ? -1 : 1)
+          : math.cos(pitchRad);
+      canvas.scale(1.0, scaleY);
       canvas.translate(-rect.center.dx, -rect.center.dy);
     }
 

@@ -64,7 +64,7 @@ class StageLibraryScreen extends ConsumerWidget {
             padding: EdgeInsets.only(right: 12),
             child: Center(
               child: Text(
-                'v1.7',
+                'v1.8',
                 style: TextStyle(fontSize: 11, color: Colors.white60),
               ),
             ),

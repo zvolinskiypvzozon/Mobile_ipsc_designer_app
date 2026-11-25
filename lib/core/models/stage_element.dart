@@ -111,6 +111,7 @@ class StageElement {
     required this.type,
     required this.position,
     this.rotation = 0,
+    this.pitch = 0,
     this.width = 1,
     this.height = 1,
   });
@@ -119,6 +120,7 @@ class StageElement {
   final StageElementType type;
   final Offset position;
   final double rotation;
+  final double pitch;
   final double width;
   final double height;
 
@@ -131,6 +133,7 @@ class StageElement {
         (row['position_y'] as num).toDouble(),
       ),
       rotation: (row['rotation'] as num?)?.toDouble() ?? 0,
+      pitch: (row['pitch'] as num?)?.toDouble() ?? 0,
       width: (row['width'] as num?)?.toDouble() ?? 1,
       height: (row['height'] as num?)?.toDouble() ?? 1,
     );
@@ -147,6 +150,7 @@ class StageElement {
       'position_x': position.dx,
       'position_y': position.dy,
       'rotation': rotation,
+      'pitch': pitch,
       'width': width,
       'height': height,
       'sort_order': sortOrder,
@@ -164,6 +168,7 @@ class StageElement {
     StageElementType? type,
     Offset? position,
     double? rotation,
+    double? pitch,
     double? width,
     double? height,
   }) {
@@ -172,6 +177,7 @@ class StageElement {
       type: type ?? this.type,
       position: position ?? this.position,
       rotation: rotation ?? this.rotation,
+      pitch: pitch ?? this.pitch,
       width: width ?? this.width,
       height: height ?? this.height,
     );
