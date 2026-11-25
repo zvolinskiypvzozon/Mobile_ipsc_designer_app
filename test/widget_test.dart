@@ -100,6 +100,48 @@ void main() {
     expect(find.byIcon(Icons.close), findsNothing);
   });
 
+  testWidgets('Панель выделения: поворот и изменение размеров',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const ProviderScope(child: IpscDesignerApp()));
+    await tester.pumpAndSettle();
+    await _placeStandart(tester);
+    final origin = _canvasOrigin(tester);
+    await tester.tapAt(origin + const Offset(400, 400));
+    await tester.pumpAndSettle();
+
+    final toolbar = find.byKey(const ValueKey('selectionToolbar'));
+    final addIcons = find.descendant(of: toolbar, matching: find.byIcon(Icons.add));
+    final removeIcons = find.descendant(of: toolbar, matching: find.byIcon(Icons.remove));
+
+    await tester.tap(find.descendant(of: toolbar, matching: find.byIcon(Icons.rotate_right)));
+    await tester.pumpAndSettle();
+    expect(_canvasElements(tester).single.rotation, 15);
+
+    await tester.tap(find.descendant(of: toolbar, matching: find.byIcon(Icons.rotate_90_degrees_cw)));
+    await tester.pumpAndSettle();
+    expect(_canvasElements(tester).single.rotation, 105);
+
+    await tester.tap(find.descendant(of: toolbar, matching: find.byIcon(Icons.rotate_90_degrees_ccw)));
+    await tester.pumpAndSettle();
+    expect(_canvasElements(tester).single.rotation, 15);
+
+    await tester.tap(addIcons.first);
+    await tester.pumpAndSettle();
+    expect(_canvasElements(tester).single.width, moreOrLessEquals(0.50, epsilon: 0.0001));
+
+    await tester.tap(removeIcons.first);
+    await tester.pumpAndSettle();
+    expect(_canvasElements(tester).single.width, moreOrLessEquals(0.45, epsilon: 0.0001));
+
+    await tester.tap(addIcons.last);
+    await tester.pumpAndSettle();
+    expect(_canvasElements(tester).single.height, moreOrLessEquals(0.85, epsilon: 0.0001));
+
+    await tester.tap(removeIcons.last);
+    await tester.pumpAndSettle();
+    expect(_canvasElements(tester).single.height, moreOrLessEquals(0.80, epsilon: 0.0001));
+  });
+
   testWidgets('Стрелки клавиатуры двигают выделенную мишень',
       (WidgetTester tester) async {
     await tester.pumpWidget(const ProviderScope(child: IpscDesignerApp()));
@@ -165,21 +207,22 @@ void main() {
     final origin = _canvasOrigin(tester);
     await tester.tapAt(origin + const Offset(400, 400));
     await tester.pumpAndSettle();
-    final first = _canvasElements(tester).single.position;
+    final first = _canvasElements(tester).first;
 
-    await tester.tapAt(origin + const Offset(484, 400));
+    await tester.tapAt(origin + _floorPointToCanvas(tester, 0.42, first.position.dy));
     await tester.pumpAndSettle();
     expect(_canvasElements(tester), hasLength(2));
 
     final dragStart = origin + _elementBase(tester, _canvasElements(tester).last) - const Offset(0, 5);
-    debugPrint('beforeDrag: ${_canvasElements(tester).map((e) => e.position)} canvas=${_canvasRender(tester).size} dragStart=$dragStart');
     await tester.dragFrom(dragStart, const Offset(40, 0));
     await tester.pumpAndSettle();
-    debugPrint('afterDrag: ${_canvasElements(tester).map((e) => e.position)}');
-    await tester.pumpAndSettle();
-    final second = _canvasElements(tester).last.position;
-    expect(second.dx, moreOrLessEquals(first.dx + 0.45, epsilon: 0.0001));
-    expect(second.dy, moreOrLessEquals(first.dy, epsilon: 0.0001));
+    final secondElement = _canvasElements(tester).last;
+    final second = secondElement.position;
+    expect(
+      second.dx,
+      moreOrLessEquals(first.position.dx + first.width / 2 + secondElement.width / 2, epsilon: 0.0001),
+    );
+    expect(second.dy, moreOrLessEquals(first.position.dy, epsilon: 0.0001));
 
     final dragStart2 = origin + _elementBase(tester, _canvasElements(tester).last) - const Offset(0, 5);
     await tester.dragFrom(dragStart2, const Offset(0, -150));

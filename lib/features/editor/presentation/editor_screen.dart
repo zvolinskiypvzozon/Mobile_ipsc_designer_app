@@ -376,7 +376,6 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
   }
 
   void _onPanUpdate(Offset local, Size size) {
-    debugPrint('pan: dragging=$_draggingElement delta=$_lastDelta cam=$_cameraOffset scale=$_cameraScale armed=$_armedTool');
     if (_armedTool != null &&
         _armedTool!.archetype == PropArchetype.floorLine) {
       if (_drawStart == null) {
@@ -567,6 +566,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
 
   Widget _buildSelectionToolbar(StageElement element) {
     return Container(
+      key: const ValueKey('selectionToolbar'),
       width: double.infinity,
       color: Colors.black26,
       padding: const EdgeInsets.symmetric(vertical: 2),
