@@ -24,7 +24,7 @@ Future<void> _placeStandart(WidgetTester tester) async {
     find.text('IPSC Standart'),
     64,
     scrollable: find.descendant(
-      of: find.widgetWithText(ListView, 'Библиотека пропов'),
+      of: find.byKey(const ValueKey('paletteList')),
       matching: find.byType(Scrollable),
     ),
   );
@@ -78,10 +78,10 @@ void main() {
     await tester.scrollUntilVisible(
       find.text('Поппер'),
       64,
-      scrollable: find.descendant(
-        of: find.widgetWithText(ListView, 'Библиотека пропов'),
-        matching: find.byType(Scrollable),
-      ),
+    scrollable: find.descendant(
+      of: find.byKey(const ValueKey('paletteList')),
+      matching: find.byType(Scrollable),
+    ),
     );
     await tester.pumpAndSettle();
 
@@ -113,17 +113,27 @@ void main() {
     final addIcons = find.descendant(of: toolbar, matching: find.byIcon(Icons.add));
     final removeIcons = find.descendant(of: toolbar, matching: find.byIcon(Icons.remove));
 
-    await tester.tap(find.descendant(of: toolbar, matching: find.byIcon(Icons.rotate_right)));
+    await tester.tap(find.descendant(of: toolbar, matching: find.byIcon(Icons.keyboard_double_arrow_right)));
     await tester.pumpAndSettle();
-    expect(_canvasElements(tester).single.rotation, 15);
+    await tester.tap(find.descendant(of: toolbar, matching: find.byIcon(Icons.keyboard_double_arrow_right)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: toolbar, matching: find.byIcon(Icons.keyboard_double_arrow_right)));
+    await tester.pumpAndSettle();
+    expect(_canvasElements(tester).single.pitch, 30);
 
-    await tester.tap(find.descendant(of: toolbar, matching: find.byIcon(Icons.rotate_90_degrees_cw)));
+    await tester.tap(find.descendant(of: toolbar, matching: find.byIcon(Icons.keyboard_double_arrow_left)));
     await tester.pumpAndSettle();
-    expect(_canvasElements(tester).single.rotation, 105);
+    await tester.tap(find.descendant(of: toolbar, matching: find.byIcon(Icons.keyboard_double_arrow_left)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: toolbar, matching: find.byIcon(Icons.keyboard_double_arrow_left)));
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: toolbar, matching: find.byIcon(Icons.keyboard_double_arrow_left)));
+    await tester.pumpAndSettle();
+    expect(_canvasElements(tester).single.pitch, -10);
 
-    await tester.tap(find.descendant(of: toolbar, matching: find.byIcon(Icons.rotate_90_degrees_ccw)));
+    await tester.tap(find.descendant(of: toolbar, matching: find.byIcon(Icons.restart_alt)));
     await tester.pumpAndSettle();
-    expect(_canvasElements(tester).single.rotation, 15);
+    expect(_canvasElements(tester).single.pitch, 0);
 
     await tester.tap(addIcons.first);
     await tester.pumpAndSettle();

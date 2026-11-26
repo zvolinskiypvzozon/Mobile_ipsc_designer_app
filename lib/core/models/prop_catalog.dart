@@ -2,11 +2,9 @@ enum PropCategory {
   ipscTargets('МИШЕНИ IPSC'),
   steel('МЕТАЛЛИЧЕСКИЕ МИШЕНИ'),
   movers('ДВИЖУЩИЕСЯ И АКТИВАТОРЫ'),
-  visualBarriers('ВИЗУАЛЬНЫЕ БАРЬЕРЫ'),
-  barricades('БАРРИКАДЫ'),
+  visualBarriers('ДЕКОРАЦИИ'),
   doorsPorts('ДВЕРИ И ОКНА'),
-  markers('МАРКЕРЫ СТЕЙДЖА'),
-  support('ОПОРНЫЕ КОНСТРУКЦИИ');
+  markers('МАРКЕРЫ СТЕЙДЖА');
 
   const PropCategory(this.label);
 

@@ -171,14 +171,10 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         return Icons.swap_horiz;
       case PropCategory.visualBarriers:
         return Icons.visibility_off;
-      case PropCategory.barricades:
-        return Icons.foundation;
       case PropCategory.doorsPorts:
         return Icons.door_front_door;
       case PropCategory.markers:
         return Icons.timeline;
-      case PropCategory.support:
-        return Icons.chair;
     }
   }
 
@@ -190,6 +186,7 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 480),
             child: ListView(
+              key: const ValueKey('paletteList'),
               shrinkWrap: true,
               children: <Widget>[
                 Padding(
@@ -546,9 +543,8 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (element == null) {
       return;
     }
-    _updateElement(
-      element.copyWith(rotation: (element.rotation + delta) % 360),
-    );
+    final next = ((element.rotation + delta) % 360 + 360) % 360;
+    _updateElement(element.copyWith(rotation: next));
   }
 
   void _pitchSelected(double delta) {
@@ -560,6 +556,15 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
     if (next > 180) {
       next -= 360;
     }
+    _updateElement(element.copyWith(pitch: next));
+  }
+
+  void _turnToWall(int side) {
+    final element = _selectedElement;
+    if (element == null) {
+      return;
+    }
+    final next = (element.pitch + side * 10.0).clamp(-90.0, 90.0);
     _updateElement(element.copyWith(pitch: next));
   }
 
@@ -586,59 +591,54 @@ class _EditorScreenState extends ConsumerState<EditorScreen> {
         children: <Widget>[
           IconButton(
             visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.rotate_90_degrees_ccw),
-            tooltip: 'Повернуть влево на 90°',
-            onPressed: () => _rotateSelected(-90),
-          ),
-          IconButton(
-            visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.rotate_left),
-            tooltip: 'Повернуть влево на 15°',
+            tooltip: 'Повернуть против часовой на 15°',
             onPressed: () => _rotateSelected(-15),
-          ),
-          Text(
-            '${element.rotation.toStringAsFixed(0)}°',
-            style: const TextStyle(fontSize: 12),
-          ),
-          TextButton(
-            onPressed: () =>
-                _updateElement(element.copyWith(rotation: 0)),
-            child: const Text('0°', style: TextStyle(fontSize: 12)),
           ),
           IconButton(
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.rotate_right),
-            tooltip: 'Повернуть вправо на 15°',
+            tooltip: 'Повернуть по часовой на 15°',
             onPressed: () => _rotateSelected(15),
           ),
-          IconButton(
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(Icons.rotate_90_degrees_cw),
-            tooltip: 'Повернуть вправо на 90°',
-            onPressed: () => _rotateSelected(90),
-          ),
-          const SizedBox(width: 8),
+          const SizedBox(width: 4),
           IconButton(
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.flip_to_back),
-            tooltip: 'Разворот от себя на 45°',
+            tooltip: 'Наклонить параллельно полу (от себя) на 45°',
             onPressed: () => _pitchSelected(-45),
           ),
           IconButton(
             visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.flip_to_front),
-            tooltip: 'Разворот к себе на 45°',
+            tooltip: 'Вернуть вертикально (к себе) на 45°',
             onPressed: () => _pitchSelected(45),
           ),
-          Text(
-            '${element.pitch.toStringAsFixed(0)}°',
-            style: const TextStyle(fontSize: 12),
+          const SizedBox(width: 4),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.keyboard_double_arrow_left),
+            tooltip: 'Развернуть к левой стене на 10°',
+            onPressed: () => _turnToWall(-1),
           ),
           IconButton(
             visualDensity: VisualDensity.compact,
+            icon: const Icon(Icons.keyboard_double_arrow_right),
+            tooltip: 'Развернуть к правой стене на 10°',
+            onPressed: () => _turnToWall(1),
+          ),
+          const SizedBox(width: 4),
+          IconButton(
+            visualDensity: VisualDensity.compact,
             icon: const Icon(Icons.restart_alt, size: 18),
-            tooltip: 'Сбросить наклон',
-            onPressed: () => _updateElement(element.copyWith(pitch: 0)),
+            tooltip: 'Сбросить поворот и наклон',
+            onPressed: () => _updateElement(
+              element.copyWith(rotation: 0, pitch: 0),
+            ),
+          ),
+          Text(
+            '↻${element.rotation.toStringAsFixed(0)}° ⤢${element.pitch.toStringAsFixed(0)}°',
+            style: const TextStyle(fontSize: 11),
           ),
           const SizedBox(width: 12),
           _dimensionStepper('Ш', element.width, (v) => _resizeSelected(width: v)),
@@ -1134,11 +1134,12 @@ class _GalleryPainter3D extends CustomPainter {
       canvas.save();
       canvas.translate(rect.center.dx, rect.center.dy);
       canvas.rotate(element.rotation * math.pi / 180);
-      final pitchRad = element.pitch * math.pi / 180;
-      final scaleY = math.cos(pitchRad).abs() < 0.05
-          ? 0.05 * (math.cos(pitchRad) < 0 ? -1 : 1)
-          : math.cos(pitchRad);
-      canvas.scale(1.0, scaleY);
+      if (element.pitch != 0) {
+        final pitchRad = element.pitch * math.pi / 180;
+        final cosP = math.cos(pitchRad);
+        final scaleX = cosP.abs() < 0.08 ? 0.08 * (cosP < 0 ? -1 : 1) : cosP;
+        canvas.scale(scaleX, 1.0);
+      }
       canvas.translate(-rect.center.dx, -rect.center.dy);
     }
 
@@ -1164,31 +1165,6 @@ class _GalleryPainter3D extends CustomPainter {
       case StageElementType.popperNsMini:
         _drawPopper(canvas, rect, isSelected, const Color(0xFFD32F2F));
         break;
-      case StageElementType.barrel:
-      case StageElementType.barrelDouble:
-        final drum = RRect.fromRectAndCorners(
-          rect,
-          topLeft: Radius.circular(w * 0.3),
-          topRight: Radius.circular(w * 0.3),
-          bottomLeft: Radius.circular(w * 0.3),
-          bottomRight: Radius.circular(w * 0.3),
-        );
-        canvas.drawRRect(drum, Paint()..color = spec.color);
-        canvas.drawRRect(drum, border);
-        final rim = Paint()
-          ..color = Colors.black26
-          ..strokeWidth = 1;
-        canvas.drawLine(
-          Offset(rect.left, rect.top + h * 0.25),
-          Offset(rect.right, rect.top + h * 0.25),
-          rim,
-        );
-        canvas.drawLine(
-          Offset(rect.left, rect.top + h * 0.75),
-          Offset(rect.right, rect.top + h * 0.75),
-          rim,
-        );
-        break;
       case StageElementType.ipscStandart:
         _drawIpscStandart(canvas, rect, isSelected, Colors.white);
         break;
@@ -1209,6 +1185,18 @@ class _GalleryPainter3D extends CustomPainter {
           Colors.white,
           cardHeightFactor: 0.20,
         );
+        break;
+      case StageElementType.ipscStandartStack3:
+        _drawIpscStack(canvas, rect, isSelected, 3, true);
+        break;
+      case StageElementType.ipscStandartStack2:
+        _drawIpscStack(canvas, rect, isSelected, 2, true);
+        break;
+      case StageElementType.ipscMiniStack3:
+        _drawIpscStack(canvas, rect, isSelected, 3, false);
+        break;
+      case StageElementType.ipscMiniStack2:
+        _drawIpscStack(canvas, rect, isSelected, 2, false);
         break;
       case StageElementType.moverTarget:
         _drawMoverTarget(canvas, rect, isSelected);
@@ -1299,38 +1287,6 @@ class _GalleryPainter3D extends CustomPainter {
       case StageElementType.texasStar:
         _drawTexasStar(canvas, rect, isSelected);
         break;
-      case StageElementType.pallet:
-        canvas.drawRect(rect, Paint()..color = spec.color);
-        canvas.drawRect(rect, border);
-        final slat = Paint()
-          ..color = Colors.black26
-          ..strokeWidth = 1;
-        for (var i = 1; i < 4; i++) {
-          canvas.drawLine(
-            Offset(rect.left, rect.top + h * i / 4),
-            Offset(rect.right, rect.top + h * i / 4),
-            slat,
-          );
-        }
-        break;
-      case StageElementType.mannequin:
-        canvas.drawRRect(
-          RRect.fromRectAndCorners(
-            rect,
-            topLeft: Radius.circular(w * 0.5),
-            topRight: Radius.circular(w * 0.5),
-          ),
-          Paint()..color = spec.color,
-        );
-        canvas.drawRRect(
-          RRect.fromRectAndCorners(
-            rect,
-            topLeft: Radius.circular(w * 0.5),
-            topRight: Radius.circular(w * 0.5),
-          ),
-          border,
-        );
-        break;
       case StageElementType.redOutline:
         canvas.drawPath(
           _ipscPath(rect),
@@ -1339,18 +1295,6 @@ class _GalleryPainter3D extends CustomPainter {
             ..style = PaintingStyle.stroke
             ..strokeWidth = 2,
         );
-        break;
-      case StageElementType.wall:
-      case StageElementType.barrier:
-      case StageElementType.table:
-      case StageElementType.sawhorse:
-      case StageElementType.bench:
-      case StageElementType.chair:
-      case StageElementType.stackBoxes:
-      case StageElementType.hayBale:
-      case StageElementType.sandbagWall:
-        canvas.drawRect(rect, Paint()..color = spec.color);
-        canvas.drawRect(rect, border);
         break;
       case StageElementType.faultLine:
       case StageElementType.stopTape:
@@ -1765,6 +1709,109 @@ class _GalleryPainter3D extends CustomPainter {
         dir.dx * math.sin(phi) + dir.dy * math.cos(phi),
       );
       canvas.drawLine(end, end - rotated * (barbLen / rotated.distance), arcPaint);
+    }
+  }
+
+  void _drawIpscStack(
+    Canvas canvas,
+    Rect rect,
+    bool isSelected,
+    int count,
+    bool isStandart,
+  ) {
+    final legW = math.max(rect.width * 0.045, 1.2);
+    final legPaint = Paint()..color = _cardOutline;
+    final insetX = rect.width * 0.12;
+    final legH = rect.height * 0.055;
+    final cardsZoneTop = rect.top + rect.height * 0.02;
+    final cardsZoneH = rect.height * 0.98 - legH;
+    final plateH = cardsZoneH / count;
+    final plateW = rect.width * 0.94;
+    final plateCx = rect.center.dx;
+    final cutX = plateW * 0.28;
+    final cutY = plateH * 0.27;
+    final legLeftX = rect.left + insetX + legW / 2;
+    final legRightX = rect.right - insetX - legW / 2;
+    canvas.drawLine(
+      Offset(legLeftX, cardsZoneTop),
+      Offset(legLeftX, rect.bottom - legH),
+      legPaint,
+    );
+    canvas.drawLine(
+      Offset(legRightX, cardsZoneTop),
+      Offset(legRightX, rect.bottom - legH),
+      legPaint,
+    );
+    canvas.drawLine(
+      Offset(rect.left + insetX, rect.bottom - legH),
+      Offset(rect.right - insetX, rect.bottom - legH),
+      legPaint,
+    );
+    final plateHpx = plateH;
+    final outline = Paint()
+      ..color = _cardOutline
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = isSelected ? 2 : 1.2;
+    for (var i = 0; i < count; i++) {
+      final plateCenterY = cardsZoneTop + plateHpx * (i + 0.5);
+      final plateRect = Rect.fromCenter(
+        center: Offset(plateCx, plateCenterY),
+        width: plateW,
+        height: plateHpx,
+      );
+      final shape = Path()
+        ..moveTo(plateRect.left + cutX, plateRect.top)
+        ..lineTo(plateRect.right - cutX, plateRect.top)
+        ..lineTo(plateRect.right, plateRect.top + cutY)
+        ..lineTo(plateRect.right, plateRect.bottom - cutY)
+        ..lineTo(plateRect.right - cutX, plateRect.bottom)
+        ..lineTo(plateRect.left + cutX, plateRect.bottom)
+        ..lineTo(plateRect.left, plateRect.bottom - cutY)
+        ..lineTo(plateRect.left, plateRect.top + cutY)
+        ..close();
+      canvas.drawPath(shape, Paint()..color = Colors.white);
+      canvas.drawPath(shape, outline);
+      if (isStandart && count == 3) {
+        final zoneInset = plateW * 0.13;
+        final zone = Path()
+          ..moveTo(plateRect.left + zoneInset * 1.6, plateRect.top + cutY * 0.45)
+          ..lineTo(
+            plateRect.right - zoneInset * 1.6,
+            plateRect.top + cutY * 0.45,
+          )
+          ..lineTo(
+            plateRect.right - zoneInset,
+            plateRect.top + cutY + plateRect.height * 0.1,
+          )
+          ..lineTo(
+            plateRect.right - zoneInset,
+            plateRect.bottom - cutY - plateRect.height * 0.1,
+          )
+          ..lineTo(
+            plateRect.right - zoneInset * 1.6,
+            plateRect.bottom - cutY * 0.45,
+          )
+          ..lineTo(
+            plateRect.left + zoneInset * 1.6,
+            plateRect.bottom - cutY * 0.45,
+          )
+          ..lineTo(
+            plateRect.left + zoneInset,
+            plateRect.bottom - cutY - plateRect.height * 0.1,
+          )
+          ..lineTo(
+            plateRect.left + zoneInset,
+            plateRect.top + cutY + plateRect.height * 0.1,
+          )
+          ..close();
+        canvas.drawPath(
+          zone,
+          Paint()
+            ..color = Colors.black26
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1,
+        );
+      }
     }
   }
 

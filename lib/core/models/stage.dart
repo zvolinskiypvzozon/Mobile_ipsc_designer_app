@@ -11,6 +11,10 @@ const _rescaledDefaultTypes = <StageElementType>{
   StageElementType.wheelStack5,
   StageElementType.wheelStack8,
   StageElementType.doorWindowSmall,
+  StageElementType.ipscStandartStack3,
+  StageElementType.ipscStandartStack2,
+  StageElementType.ipscMiniStack3,
+  StageElementType.ipscMiniStack2,
 };
 
 StageElement _snapToCurrentDefault(StageElement element) {
